@@ -14,6 +14,8 @@ from .base import STYLES, Cancelled, VoiceEngine
 
 VENV_PY = Path(os.environ.get("LEXCUT_TTS_VENV") or config.HOME / "venv-tts") / "bin" / "python"
 WORKER = Path(__file__).resolve().parent.parent / "xtts_worker.py"
+SI_WORKER = Path(__file__).resolve().parent.parent / "sinhala_worker.py"
+PIPER_MODEL = Path(__file__).resolve().parents[2] / "models" / "piper" / "si_LK-sinhala-medium.onnx"
 MODEL_HOME = Path(__file__).resolve().parents[2] / "models" / "tts"
 
 LANGS = [
@@ -23,8 +25,9 @@ LANGS = [
     ("es", "Spanish", ""), ("fr", "French", ""), ("de", "German", ""), ("it", "Italian", ""),
     ("pt", "Portuguese", ""), ("pl", "Polish", ""), ("tr", "Turkish", ""), ("ru", "Russian", ""),
     ("nl", "Dutch", ""), ("cs", "Czech", ""), ("hu", "Hungarian", ""), ("hi", "Hindi", ""),
+    ("si", "Sinhala", "Piper voice converted to this voice"),
 ]
-UNSUPPORTED = [{"name": "Sinhala", "reason": "XTTS-v2 has no Sinhala model. A different engine would be needed."}]
+UNSUPPORTED = []
 
 
 class XttsEngine(VoiceEngine):
@@ -38,6 +41,7 @@ class XttsEngine(VoiceEngine):
         self._lock = threading.Lock()      # one request at a time (single model instance)
         self._cancel = threading.Event()
         self._stderr_tail = []
+        self._si = SinhalaVoice()
 
     def capabilities(self):
         installed = VENV_PY.exists()
@@ -101,6 +105,7 @@ class XttsEngine(VoiceEngine):
             return res
 
     def cancel(self):
+        self._si.cancel()
         self._cancel.set()
         p = self._proc
         if p and p.poll() is None:
@@ -114,8 +119,74 @@ class XttsEngine(VoiceEngine):
         return Path(workdir) / "samples" / voice["id"] / f"latents_v{voice['version']}.pt"
 
     def synthesize(self, voice, req, out_path, workdir):
+        if req["language"] == "si":
+            return self._si.synthesize(voice, req, out_path, workdir)
         self._call({"op": "synth", "latents": str(self._latents(voice, workdir)), "text": req["text"], "language": req["language"],
                     "speed": req["speed"], "temperature": req["temperature"], "top_p": req.get("top_p", 0.85), "out": str(out_path)})
 
     def delete_voice(self, voice, workdir):
         pass  # latents live inside the voice's sample folder, which the API deletes
+
+
+class SinhalaVoice:
+    """Sinhala, which XTTS cannot speak: Piper speaks the text, then OpenVoice v2 converts it to the voice's own sound.
+    Uses its own worker process (voice/sinhala_worker.py) in the same environment, so XTTS is not loaded for it."""
+
+    def __init__(self):
+        self._proc = None
+        self._lock = threading.Lock()
+        self._cancel = threading.Event()
+        self._stderr_tail = []
+
+    def _start(self):
+        if self._proc and self._proc.poll() is None:
+            return
+        if not VENV_PY.exists():
+            raise RuntimeError("The voice environment is missing (~/.opencut/venv-tts). Run ./install.sh.")
+        if not PIPER_MODEL.exists():
+            raise RuntimeError("The Sinhala voice model is missing (models/piper). Run ./install.sh.")
+        env = {**os.environ, "TTS_HOME": str(MODEL_HOME), "COQUI_TOS_AGREED": "1", "LEXCUT_PIPER_MODEL": str(PIPER_MODEL),
+               "PYTORCH_ENABLE_MPS_FALLBACK": "1", "TOKENIZERS_PARALLELISM": "false"}
+        self._proc = subprocess.Popen([str(VENV_PY), str(SI_WORKER)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE, text=True, bufsize=1, env=env)
+        self._stderr_tail = []
+        def drain(p=self._proc):
+            for line in p.stderr:
+                self._stderr_tail = (self._stderr_tail + [line.rstrip()])[-12:]
+        threading.Thread(target=drain, daemon=True).start()
+
+    def synthesize(self, voice, req, out_path, workdir):
+        folder = Path(workdir) / "samples" / voice["id"]
+        samples = sorted(str(p) for p in folder.glob("*.wav") if not p.name.startswith("._"))
+        if not samples:
+            raise RuntimeError("This voice has no samples to copy the sound from.")
+        msg = {"op": "synth", "text": req["text"], "speed": req["speed"], "samples": samples, "out": str(out_path)}
+        with self._lock:
+            self._cancel.clear()
+            self._start()
+            p = self._proc
+            timer = threading.Timer(900, p.kill)
+            timer.start()
+            try:
+                p.stdin.write(json.dumps(msg) + "\n")
+                p.stdin.flush()
+                line = p.stdout.readline()
+            except (BrokenPipeError, ValueError):
+                line = ""
+            finally:
+                timer.cancel()
+            if self._cancel.is_set():
+                raise Cancelled()
+            if not line:
+                self._proc = None
+                raise RuntimeError("Sinhala voice engine stopped unexpectedly. " + " | ".join(self._stderr_tail[-4:])[-300:])
+            res = json.loads(line)
+            if not res.get("ok"):
+                raise RuntimeError(res.get("error", "Sinhala voice error"))
+
+    def cancel(self):
+        self._cancel.set()
+        p = self._proc
+        if p and p.poll() is None:
+            p.kill()
+        self._proc = None

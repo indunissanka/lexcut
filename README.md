@@ -23,8 +23,10 @@ A video editor that runs in your browser on a Mac, with AI voice, subtitles and 
 
 **AI, local and free**
 - Automatic subtitles with local Whisper (large-v3), plus subtitle translation
+- **Sinhala transcription** with a Whisper model trained on Sinhala ([SinhaSpeech/whisper-small-sinhala](https://huggingface.co/SinhaSpeech/whisper-small-sinhala-run12-best)). Large-v3 loops on Sinhala; this model does not. Claude can then fix misheard words.
 - Speaker labels (Person 1, Person 2…) with voice matching
-- **AI Voice Studio:** clone a voice from samples, text-to-speech in 18 languages (Coqui XTTS-v2), styles, pronunciation fixes, insert narration into the timeline. Ready-made macOS system voices are also included.
+- **AI Voice Studio:** clone a voice from samples, text-to-speech in 19 languages, styles, pronunciation fixes, insert narration into the timeline. Ready-made macOS system voices are also included.
+- **Sinhala voice in your own voice:** a [Piper Sinhala voice](https://huggingface.co/chan4lk/piper-tts-sinhala) speaks the text, then OpenVoice v2 converts it to sound like your cloned voice. 18 languages use Coqui XTTS-v2.
 - Smart tools: scene detection, silence removal, highlight detection
 
 **AI with Claude** (uses your Claude Code login, no API key)
@@ -54,9 +56,9 @@ The script installs Python 3.11 and ffmpeg (with Homebrew), the transcription en
 
 | Option | What it does |
 |---|---|
-| `--no-voice` | Skip the ~2 GB voice environment |
+| `--no-voice` | Skip the ~2 GB voice environment (also turns off the Sinhala voice and Sinhala transcription) |
 | `--no-launcher` | Do not create the launcher apps |
-| `--download-models` | Download the Whisper model (~3 GB) now instead of on first use |
+| `--download-models` | Download the Whisper models (~4 GB) and OpenVoice now instead of on first use |
 | `--mcp` | Register the Claude connector |
 
 ## Run
@@ -88,7 +90,8 @@ Keep the editor open in a browser tab. Claude then gets the tools `opencut_get_s
 The LexCut code is under the [MIT licence](LICENSE). The models it downloads have their own licences:
 
 - **Coqui XTTS-v2** uses the Coqui Public Model License, which is **non-commercial**. The app asks you to accept it before the first voice is created.
-- Whisper large-v3 uses the MIT licence.
+- Whisper large-v3 uses the MIT licence. The Sinhala Whisper model uses Apache-2.0.
+- The Piper Sinhala voice uses the MIT licence (trained on OpenSLR 30, CC BY-SA 4.0). OpenVoice v2 uses the MIT licence.
 - Each Replicate model has its own licence. Check it on the model's page.
 
 Only clone voices you have permission to use. The app asks for the voice owner's consent and keeps an audit log.

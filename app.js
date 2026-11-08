@@ -2476,8 +2476,9 @@ async function chatTranscribe(a, pick) {
   const say = m => { tag.textContent = m; $('#chat-log').scrollTop = $('#chat-log').scrollHeight; };
   try {
     const lang = String(a.language || '').toLowerCase();
-    const useLocal = lang === 'sinhala' && localWhisperReady;   // Sinhala needs the big model, the small browser ones garble it
-    const segs = await transcribeClips(a.clip != null ? [c] : trClips(), useLocal ? 'local:large-v3' : 'Xenova/whisper-base', lang, say);
+    // Sinhala: the Whisper model trained on Sinhala; large-v3 only as a fallback (it loops on Sinhala); browser models garble it
+    const model = lang === 'sinhala' ? (sinhalaAsrReady ? 'local:sinhala' : localWhisperReady ? 'local:large-v3' : 'Xenova/whisper-base') : 'Xenova/whisper-base';
+    const segs = await transcribeClips(a.clip != null ? [c] : trClips(), model, lang, say);
     trSegments = segs;
     $('#tr-text').value = segs.map(s => `[${fmt(s.start)}] ${s.text}`).join('\n');
     for (const id of ['tr-caps', 'tr-srt', 'tr-txt']) $('#' + id).disabled = !segs.length;
@@ -2715,13 +2716,15 @@ async function runTranscript() {
   try {
     const lang = $('#tr-lang').value;
     let model = $('#tr-model').value;
-    if (lang === 'sinhala' && localWhisperReady && model !== 'local:large-v3') { model = 'local:large-v3'; $('#tr-model').value = model; }
-    if (lang === 'sinhala' && model !== 'local:large-v3') status.textContent = 'Warning: Sinhala is inaccurate with the small browser models. Start the editor with server.py to use Large-v3.';
+    if (lang === 'sinhala' && sinhalaAsrReady && model !== 'local:sinhala') { model = 'local:sinhala'; $('#tr-model').value = model; }
+    else if (lang === 'sinhala' && !sinhalaAsrReady && localWhisperReady && model !== 'local:large-v3') { model = 'local:large-v3'; $('#tr-model').value = model; }
+    if (model === 'local:sinhala' && lang !== 'sinhala') { status.textContent = 'The Sinhala Whisper model only understands Sinhala. Choose Sinhala as the language, or another model.'; run.disabled = false; return; }
+    if (lang === 'sinhala' && model !== 'local:sinhala') status.textContent = 'Warning: Sinhala is inaccurate with this model. Run ./install.sh to get the Sinhala Whisper model.';
     trSegments = await transcribeClips(trClips(), model, lang, m => { status.textContent = m; });
     $('#tr-text').value = trSegments.map(trLine).join('\n');
     $('#tr-text').readOnly = false;
     renderNames();
-    status.textContent = trSegments.length ? `Done: ${trSegments.length} lines.` : 'No speech found.';
+    status.textContent = trSegments.length ? `Done: ${trSegments.length} lines.` + (lang === 'sinhala' ? ' Tip: “Fix grammar & style with Claude” below corrects misheard Sinhala words.' : '') : 'No speech found.';
   } catch (e) {
     status.textContent = 'Error: ' + e.message;
   }
@@ -2782,11 +2785,12 @@ $('#btn-tr').onclick = () => {
   $('#tr-dialog').showModal();
 };
 $('#tr-close').onclick = () => $('#tr-dialog').close();
-$('#tr-lang').onchange = e => { if (e.target.value === 'sinhala' && localWhisperReady) $('#tr-model').value = 'local:large-v3'; };
+$('#tr-lang').onchange = e => { if (e.target.value === 'sinhala') { if (sinhalaAsrReady) $('#tr-model').value = 'local:sinhala'; else if (localWhisperReady) $('#tr-model').value = 'local:large-v3'; } else if ($('#tr-model').value === 'local:sinhala') $('#tr-model').value = localWhisperReady ? 'local:large-v3' : 'Xenova/whisper-base'; };
 $('#tr-run').onclick = runTranscript;
 let localWhisperReady = false;
 let speakerDetectReady = false;
-fetch('/api/status').then(r => r.json()).then(j => { localWhisperReady = !!j.whisper; speakerDetectReady = !!j.speakers; }).catch(() => {});
+let sinhalaAsrReady = false;
+fetch('/api/status').then(r => r.json()).then(j => { localWhisperReady = !!j.whisper; speakerDetectReady = !!j.speakers; sinhalaAsrReady = !!j.sinhala; }).catch(() => {});
 $('#tr-caps').onclick = () => {
   pushHistory();
   const added = addCaptionClips(trCurrent());

@@ -28,7 +28,8 @@ MAX_BODY = 1_000_000
 MAX_VISION = 16_000_000  # a few dozen small JPEG frames as base64
 MAX_AUDIO = 300_000_000  # 16 kHz 16-bit mono is about 115 MB per hour
 VENV_PY = HERE / ".venv" / "bin" / "python"
-WHISPER_MODELS = {"large-v3": "mlx-community/whisper-large-v3-mlx", "large-v3-turbo": "mlx-community/whisper-large-v3-turbo"}
+WHISPER_MODELS = {"large-v3": "mlx-community/whisper-large-v3-mlx", "large-v3-turbo": "mlx-community/whisper-large-v3-turbo",
+                  "sinhala": "SinhaSpeech/whisper-small-sinhala-run12-best"}   # Whisper fine-tuned on Sinhala (Apache-2.0), runs in the voice environment
 
 
 # ---- Bridge: lets an outside program (the MCP connector, opencut_mcp.py) drive the editor open in the browser.
@@ -126,6 +127,15 @@ def run_claude_vision(system: str, prompt: str, images: list) -> str:
 
 
 def run_whisper(pcm: bytes, model: str, lang: str):
+    if model == "sinhala":
+        if not TTS_PY.exists():
+            raise RuntimeError("Sinhala transcription needs the voice environment (~/.opencut/venv-tts). Run ./install.sh.")
+        r = subprocess.run([str(TTS_PY), str(HERE / "sinhala_asr_worker.py"), WHISPER_MODELS[model]],
+                           input=pcm, capture_output=True, timeout=3 * 3600,
+                           env={**os.environ, "HF_HUB_CACHE": str(HERE / "models" / "hub"), "PYTORCH_ENABLE_MPS_FALLBACK": "1"})
+        if r.returncode != 0:
+            raise RuntimeError(r.stderr.decode(errors="replace").strip()[-500:] or "Sinhala transcription failed")
+        return json.loads(r.stdout.decode().strip().splitlines()[-1])
     if not VENV_PY.exists():
         raise RuntimeError("mlx-whisper is not installed (missing .venv).")
     r = subprocess.run([str(VENV_PY), str(HERE / "whisper_worker.py"), WHISPER_MODELS[model], lang],
@@ -567,7 +577,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             return self._reply(200, cmd)
         if url.path == "/api/status":
-            return self._reply(200, {"whisper": VENV_PY.exists(), "speakers": TTS_PY.exists()})
+            return self._reply(200, {"whisper": VENV_PY.exists(), "speakers": TTS_PY.exists(), "sinhala": TTS_PY.exists()})
         super().do_GET()
 
     def end_headers(self):

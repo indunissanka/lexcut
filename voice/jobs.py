@@ -133,7 +133,7 @@ def _worker():
                 raw = wd / "tmp" / f"{jid}.raw.wav"
                 eng.synthesize(voice, r, raw, wd)
                 final = out_file(job["cache_key"])
-                meta = {"comment": f"AI-generated speech (OpenCut AI Voice Studio, {eng.name}). Voice profile: {voice['name']}.",
+                meta = {"comment": f"AI-generated speech (LexCut AI Voice Studio, {eng.name}{', Piper + OpenVoice for Sinhala' if r['language'] == 'si' else ''}). Voice profile: {voice['name']}.",
                         "artist": "AI-generated voice", "title": "AI-generated"}
                 media.post_process(raw, final, r["pitch"], r["fit_dur"], meta)
                 raw.unlink(missing_ok=True)

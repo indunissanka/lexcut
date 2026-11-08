@@ -2,9 +2,9 @@
 # LexCut installer for macOS on Apple Silicon. Safe to run again: it only adds what is missing.
 #
 #   ./install.sh                  everything (system tools, transcription, voice, launchers)
-#   ./install.sh --no-voice       skip the ~2 GB voice environment (Voice Studio, speaker labels)
+#   ./install.sh --no-voice       skip the ~2 GB voice environment (Voice Studio, speaker labels, Sinhala voice and transcription)
 #   ./install.sh --no-launcher    do not create ~/Applications/LexCut.app and Stop LexCut.app
-#   ./install.sh --download-models  also download the Whisper model now (~3 GB) instead of on first use
+#   ./install.sh --download-models  also download the Whisper, Sinhala Whisper and OpenVoice models now instead of on first use
 #   ./install.sh --mcp            also register the Claude connector (claude mcp add opencut ...)
 #
 # Environment overrides: LEXCUT_TTS_VENV (voice environment folder, default ~/.opencut/venv-tts),
@@ -54,13 +54,22 @@ if [ "$VOICE" = 1 ]; then
   "$TTS_VENV/bin/python" -m pip install -q --upgrade pip
   "$TTS_VENV/bin/python" -m pip install -q -r "$ROOT/requirements/voice.txt"
   "$TTS_VENV/bin/python" -m pip install -q --no-deps Resemblyzer==0.1.4
+  # Sinhala voice: Piper model trained on OpenSLR 30 (MIT), https://huggingface.co/chan4lk/piper-tts-sinhala
+  mkdir -p "$ROOT/models/piper"
+  for f in si_LK-sinhala-medium.onnx si_LK-sinhala-medium.onnx.json; do
+    [ -s "$ROOT/models/piper/$f" ] || curl -fL --progress-bar -o "$ROOT/models/piper/$f" "https://huggingface.co/chan4lk/piper-tts-sinhala/resolve/main/$f"
+  done
   echo "The XTTS voice model (~2 GB) downloads the first time you create a voice, after you accept its licence in the app."
 fi
 
 # 4. Optional: Whisper model now
 if [ "$MODELS" = 1 ]; then
-  say "Downloading Whisper large-v3 into models/"
+  say "Downloading models into models/"
   HF_HOME="$ROOT/models" "$ROOT/.venv/bin/python" -c "from huggingface_hub import snapshot_download; snapshot_download('mlx-community/whisper-large-v3-mlx')"
+  if [ "$VOICE" = 1 ]; then
+    HF_HUB_CACHE="$ROOT/models/hub" "$TTS_VENV/bin/python" -c "from huggingface_hub import snapshot_download; snapshot_download('SinhaSpeech/whisper-small-sinhala-run12-best')"
+    TTS_HOME="$ROOT/models/tts" COQUI_TOS_AGREED=1 "$TTS_VENV/bin/python" -c "from TTS.api import TTS; TTS('voice_conversion_models/multilingual/multi-dataset/openvoice_v2')" >/dev/null
+  fi
 fi
 
 # 5. Claude features (chat assistant, grammar fix, highlights, MCP connector)
@@ -140,6 +149,7 @@ import TTS, resemblyzer
 PY
 }
 ok "Voice Studio and speaker labels" voice_ok
+ok "Sinhala voice (Piper + OpenVoice) and Sinhala transcription" '[ -s "$ROOT/models/piper/si_LK-sinhala-medium.onnx" ] && "$TTS_VENV/bin/python" -c "import piper, transformers" 2>/dev/null'
 ok "Claude features (claude CLI)" 'command -v claude >/dev/null || [ -x "$HOME/.local/bin/claude" ]'
 echo "  Paid cloud tools (Replicate) need no install: paste your key in AI > AI Cloud tools > Settings."
 echo

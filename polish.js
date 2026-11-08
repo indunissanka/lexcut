@@ -18,6 +18,7 @@ const SYSTEM = mode => [
   '4. If a segment continues in the next one, keep it as a fragment: do not force a complete sentence or add a final full stop that does not belong.',
   '5. If a segment is unintelligible noise or you are unsure what was said, return it unchanged instead of guessing.',
   '6. No commentary, no notes, no added quotation marks.',
+  '7. The text comes from automatic speech recognition, which often mishears a word as a similar-sounding one (very common in Sinhala). When a word is clearly misheard and does not fit the context, replace it with the similar-sounding word that does (for example Sinhala "අද කළ ගුණය ඉතාම සුන්දරයි" -> "අද කාලගුණය ඉතාම සුන්දරයි"). Use correct Sinhala Unicode spelling, including ZWJ forms such as ශ්‍රී.',
   'Items may have an "s" field: the number of the person speaking. Different numbers are different people, so keep each person\'s own way of speaking and never move words between people.',
   'Items in "context_before" are earlier lines for context only: do NOT return them.',
   'Reply with ONLY a JSON array of {"i","text"} in the same order.',
