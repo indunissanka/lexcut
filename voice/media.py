@@ -68,7 +68,7 @@ def post_process(src, dst, pitch_semitones=0.0, fit_dur=None, meta=None):
     filters = []
     if abs(pitch_semitones) > 0.01:
         f = 2 ** (pitch_semitones / 12)
-        filters += [f"asetrate={int(24000 * f)}", "aresample=24000", f"atempo={1 / f:.5f}" if 0.5 <= 1 / f <= 2 else "anull"]
+        filters += ["aresample=24000", f"asetrate={int(24000 * f)}", "aresample=24000", f"atempo={1 / f:.5f}" if 0.5 <= 1 / f <= 2 else "anull"]
     if fit_dur:
         cur = duration(src)
         if cur > fit_dur > 0.2:

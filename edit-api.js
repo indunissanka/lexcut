@@ -95,6 +95,19 @@
         state.clips.push(c); state.sel = c.id;
         return;
       }
+      case 'add_caption': {   // {text, start, dur, layer?:"Translation: Sinhala", props?} a caption on a named text layer (created if missing)
+        const name = String(a.layer || TRACKS[defaultTrack('text')].name).slice(0, 40);
+        let track = TRACKS.findIndex(t => t.kind === 'text' && t.name === name);
+        if (track < 0) { addLayer('text'); track = TRACKS.length - 1; TRACKS[track].name = name; buildLabels(); }
+        const start = Math.max(0, num(a.start, 'start')), dur = Math.max(0.2, num(a.dur, 'dur'));
+        const c = { ...newTextClip(String(a.text ?? ''), start, dur), track };
+        if (/[\u0D80-\u0DFF]/.test(c.text)) c.font = FONTS.find(f => f[0] === 'Sinhala')[1];   // Sinhala script needs a Sinhala font
+        if (!fits(c, start, dur, track)) throw new Error(`caption would overlap another caption on "${name}" at ${start}s`);
+        state.clips.push(c);
+        for (const [k, v] of Object.entries(a.props || {})) setProp(c, k, v);
+        state.sel = c.id;
+        return;
+      }
       case 'track_label': {   // {clip, at, u, v, text, sub?, start?, dur?, box?, dx?, dy?, size?, accent?, dot?} name tag that follows a tracked object
         const c = findClip(a.clip), TR = window.FX_TRACK, T = window.TITLE_API;
         if (!TR) throw new Error('motion tracking is not loaded');
@@ -165,6 +178,7 @@ Extra actions (pro editing):
    ts (title style): ${Object.keys(window.TITLE_API && window.TITLE_API.TS_STYLES || {}).join(', ')}; lt (lower third): ${Object.keys(window.TITLE_API && window.TITLE_API.LT_STYLES || {}).join(', ')}
 {"type":"transition","clip":ID,"kind":"fade","dur":0.6}   (on the cut before the clip; kinds: ${Object.keys(TRANSITIONS).join(', ')})
 {"type":"add_media_url","url":"/media/intro.mp4","track":2,"start":0}   (import a video/picture/audio file the editor server hosts, e.g. a rendered intro, and place it)
+{"type":"add_caption","text":"...","start":4.4,"dur":2.5,"layer":"Translation: Sinhala","props":{"size":40,"bg":true,"y":76}}   (a caption on a named text layer, created if missing; Sinhala text gets the Sinhala font)
 {"type":"add_audio_url","url":"/api/voice/jobs/<job id>/audio","name":"Narration 1","start":4.4,"track":"AI Voice","vol":1,"fadeOut":0.1}   (put generated audio, e.g. an AI voice line, on a named audio layer)
 {"type":"track_label","clip":ID,"at":19.3,"u":0.35,"v":0.18,"text":"Hermannsdenkmal","sub":"Teutoburg Forest","start":19.3,"dur":2.8,"dx":4,"dy":-3}   (tracks the point u,v (0..1 of the video frame at time "at") and adds a name tag + marker dot that follow it)
 {"type":"keyframes","clip":ID,"prop":"scale","keys":[[0,1],[4,1.12]]}   (animate scale, px, py, rot, opacity, x, y, vol over the clip; t from the clip start)`;
