@@ -229,7 +229,7 @@ function connectAudio(el) {
   comp.threshold.value = 0; comp.ratio.value = 1; comp.knee.value = 0; comp.attack.value = 0.01; comp.release.value = 0.2;
   an.fftSize = 512;
   src.connect(hp); hp.connect(lo); lo.connect(mid); mid.connect(hi); hi.connect(comp); comp.connect(pan); pan.connect(gain); gain.connect(masterGain); gain.connect(an);
-  el.__chain = { hp, lo, mid, hi, comp, pan, gain, an };
+  el.__chain = { src, hp, lo, mid, hi, comp, pan, gain, an };
 }
 function audioApply(el, c, vol, pan) {   // set the chain for the clip that is playing on this element
   const ch = el.__chain;
@@ -242,6 +242,26 @@ function audioApply(el, c, vol, pan) {   // set the chain for the clip that is p
   set(ch.comp.threshold, -k * 38); set(ch.comp.ratio, 1 + k * 9); set(ch.comp.knee, 8 + k * 12);
 }
 
+function audioPlayer(a) {   // the player of an audio file, made when it is needed
+  if (!a.el) {
+    const el = document.createElement('audio');
+    el.preload = 'auto';
+    el.src = a.url;
+    connectAudio(el);
+    a.el = el;
+  }
+  a.lastUse = performance.now();
+  return a.el;
+}
+function releasePlayer(a) {
+  const el = a.el;
+  if (!el) return;
+  el.pause();
+  if (el.__chain) for (const n of Object.values(el.__chain)) try { n.disconnect(); } catch { /* already disconnected */ }
+  el.removeAttribute('src'); el.load();
+  a.el = null;
+}
+
 function kindOf(f) { return f.type.startsWith('video/') ? 'video' : f.type.startsWith('audio/') ? 'audio' : f.type.startsWith('image/') ? 'image' : null; }
 
 async function loadAsset(f, id) {
@@ -252,6 +272,19 @@ async function loadAsset(f, id) {
     a.el = new Image();
     a.el.src = url;
     await a.el.decode();
+  } else if (kind === 'audio') {
+    // Chrome allows only about 75 media players per page. A project can hold hundreds of voice lines, so an audio
+    // file gets a player only while one of its clips plays (audioPlayer / releasePlayer, driven by syncMedia).
+    const el = document.createElement('audio');
+    el.preload = 'metadata';
+    el.src = url;
+    try {
+      await new Promise((res, rej) => { el.onloadedmetadata = res; el.onerror = () => rej(new Error('cannot decode')); });
+      if (!isFinite(el.duration)) {
+        await new Promise(r => { const to = setTimeout(r, 8000); el.ondurationchange = () => { if (isFinite(el.duration)) { clearTimeout(to); r(); } }; el.currentTime = 1e6; });
+      }
+      a.dur = isFinite(el.duration) ? el.duration : 5;
+    } finally { el.removeAttribute('src'); el.load(); }
   } else {
     a.el = document.createElement(kind);
     a.el.preload = 'auto';
@@ -315,8 +348,8 @@ function removeAsset(id) {
   pushHistory();
   state.clips = state.clips.filter(c => c.assetId !== id);
   const a = state.assets.get(id);
-  if (a && a.el && a.el.pause) a.el.pause();
-  if (a && a.aEl) a.aEl.pause();
+  if (a && a.kind === 'audio') releasePlayer(a);
+  else { if (a && a.el && a.el.pause) a.el.pause(); if (a && a.aEl) a.aEl.pause(); }
   state.assets.delete(id);
   renderBin(); afterEdit();
 }
@@ -1214,6 +1247,12 @@ let playClock = 0, playT0 = 0;
 function syncMedia() {
   for (const a of state.assets.values()) {
     if (a.kind === 'image') continue;
+    if (a.kind === 'audio') {
+      // a player for the clip playing now, or starting within 2 s while playing (so it is ready in time)
+      const soon = c => c.assetId === a.id && (active(c, state.t) || (state.playing && c.start > state.t && c.start - state.t < 2));
+      if (!state.clips.some(soon)) { if (a.el && (!state.playing || performance.now() - (a.lastUse || 0) > 1500)) releasePlayer(a); else if (a.el && !a.el.paused) a.el.pause(); continue; }
+      audioPlayer(a);
+    }
     // a video has two players: the picture (a.el) and its sound (a.aEl, used by the clip on the Audio layer)
     const roles = a.kind === 'video' ? [[a.el, o => !o.audioOnly], [a.aEl, o => o.audioOnly]] : [[a.el, () => true]];
     for (const [el, want] of roles) {
