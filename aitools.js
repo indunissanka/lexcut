@@ -73,9 +73,8 @@ async function removeSilence(c, { minPause = 0.6, pad = 0.15 } = {}) {
   if (!regions.length) return { removed: 0, count: 0, text: 'No pauses longer than ' + minPause + ' s found.' };
   let removed = 0;
   for (const [s, e] of regions.reverse()) removed += cutOut(c, s, e);   // from the end so earlier times do not move
-  const others = state.clips.some(o => o.track !== c.track && o.text != null);
   afterEdit();
-  return { removed, count: regions.length, text: `Removed ${regions.length} pause${regions.length > 1 ? 's' : ''} (${removed.toFixed(1)} s in all).${others ? ' Text layers were not moved: run this before adding captions, or re-transcribe.' : ''}` };
+  return { removed, count: regions.length, text: `Removed ${regions.length} pause${regions.length > 1 ? 's' : ''} (${removed.toFixed(1)} s in all). Captions and other layers were cut and moved with it.` };
 }
 
 // ---------- highlights ----------

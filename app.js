@@ -418,7 +418,33 @@ function removeClips(cs) {   // delete clips together with their linked partners
   for (const c of cs) { gone.add(c.id); for (const p of partners(c)) gone.add(p.id); }
   state.clips = state.clips.filter(o => !gone.has(o.id));
 }
+// Cutting picture or sound also cuts the captions, voice and music that play with it, so they stay in sync.
+const isMediaClip = c => c && c.assetId != null && TRACKS[c.track] && TRACKS[c.track].kind !== 'text';
+function splitCaptionsAt(t, skip) {   // split the text clips (captions) that run across time t
+  for (const o of [...state.clips]) if (!skip.has(o.id) && TRACKS[o.track] && TRACKS[o.track].kind === 'text' && t > o.start + 0.05 && t < o.start + o.dur - 0.05) splitClip(o, t);
+}
+function rippleCutRange(s, e, skip) {   // remove [s, e) from every layer and move later clips left
+  const d = e - s, done = new Set(skip), shift = g => { for (const x of [g, ...partners(g)]) x.start = Math.max(0, x.start - d); };
+  for (const o of [...state.clips]) {
+    if (done.has(o.id) || !state.clips.includes(o)) continue;
+    for (const x of [o, ...partners(o)]) done.add(x.id);
+    const oe = o.start + o.dur;
+    if (oe <= s + 0.05) continue;                                   // ends before the cut
+    if (o.start >= e - 0.05) { shift(o); continue; }                // starts after the cut
+    const before = o.start < s - 0.05, after = oe > e + 0.05;
+    if (before && after) { const mid = splitClip(o, s), right = splitClip(mid, e); removeClips([mid]); shift(right); }
+    else if (before) removeClips([splitClip(o, s)]);                // keep the part before the cut
+    else if (after) { const right = splitClip(o, e); removeClips([o]); shift(right); }   // keep the part after the cut
+    else removeClips([o]);                                          // fully inside the cut
+  }
+}
 function rippleRemove(c) {
+  if (isMediaClip(c)) {   // picture/sound: close the gap on every layer, captions included
+    const ids = new Set([c.id, ...partners(c).map(p => p.id)]), s = c.start, e = c.start + c.dur;
+    removeClips([c]);
+    rippleCutRange(s, e, ids);
+    return;
+  }
   const rs = [c, ...partners(c)];
   removeClips([c]);
   for (const r of rs) { const end = r.start + r.dur - 1e-6; for (const o of state.clips) if (o.track === r.track && o.start >= end) o.start -= r.dur; }
@@ -454,7 +480,9 @@ function splitAtPlayhead() {
   }
   if (!c) return;
   pushHistory();
-  state.sel = splitClip(c, t).id;
+  const right = splitClip(c, t);
+  if (isMediaClip(c)) splitCaptionsAt(t, new Set([c.id, right.id, ...partners(c).map(p => p.id), ...partners(right).map(p => p.id)]));
+  state.sel = right.id;
   afterEdit();
 }
 function deleteSel() {
@@ -2455,7 +2483,9 @@ async function chatExec(a) {
       const t = typeof a.at === 'number' ? a.at : state.t;
       const c = a.clip != null ? pick() : state.clips.find(o => t > o.start + 0.05 && t < o.start + o.dur - 0.05);
       if (!c || !(t > c.start + 0.05 && t < c.start + c.dur - 0.05)) throw new Error('nothing to split at that time');
-      state.sel = splitClip(c, t).id;
+      const right = splitClip(c, t);
+      if (isMediaClip(c)) splitCaptionsAt(t, new Set([c.id, right.id, ...partners(c).map(p => p.id), ...partners(right).map(p => p.id)]));
+      state.sel = right.id;
       break;
     }
     case 'delete': { const c = pick(); removeClips([c]); if (!selClip()) state.sel = null; break; }
