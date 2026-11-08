@@ -1,0 +1,68 @@
+/* AI Voice Studio. Uses the same dark palette as the rest of LexCut. */
+#vs-dialog, #vs-new-dialog { background: #1d1f25; color: #e6e6e6; border: 1px solid #3a3d46; border-radius: 8px; padding: 0; }
+#vs-dialog { width: min(1040px, 96vw); height: min(780px, 92vh); }
+#vs-new-dialog { width: 440px; padding: 14px 16px; }
+#vs-dialog::backdrop, #vs-new-dialog::backdrop { background: rgba(0,0,0,.6); }
+#vs-dialog[open] { display: flex; flex-direction: column; }
+.vs-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #2c2f37; }
+.vs-head h3 { margin: 0; }
+.vs-head .spacer { flex: 1; }
+.vs-gate { padding: 10px 14px; background: #2a2316; border-bottom: 1px solid #5a4a22; color: #e8d29a; }
+.vs-gate:empty { display: none; }
+.vs-gate label { display: block; margin: 6px 0; }
+.vs-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px 1fr; }
+.vs-lib { border-right: 1px solid #2c2f37; display: flex; flex-direction: column; gap: 8px; padding: 10px; min-height: 0; }
+.vs-lib select { width: 100%; }
+#vs-list { overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.vs-card { border: 1px solid #343741; border-radius: 6px; padding: 8px; cursor: pointer; background: #181a1f; }
+.vs-card:hover { background: #20232a; }
+.vs-card.sel { border-color: #3b6df0; background: #1c2438; }
+.vs-card b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-card small { color: #8d919c; display: block; margin-top: 2px; }
+.vs-chip { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 10px; background: #343741; color: #ccc; margin-right: 4px; }
+.vs-chip.ready { background: #1f5a42; color: #b9f0d6; }
+.vs-chip.cloning { background: #5a4a22; color: #f0dc9c; }
+.vs-chip.draft { background: #4a3a22; color: #f0c89c; }
+.vs-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.vs-tabs { display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid #2c2f37; }
+.vs-tabs button { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; background: transparent; }
+.vs-tabs button.on { background: #2a2c33; border-color: #4a4d58; }
+.vs-pane { flex: 1; overflow: auto; padding: 12px 14px; }
+.vs-pane[hidden] { display: none; }
+.vs-pane label, #vs-new-dialog label { display: block; margin: 8px 0 2px; color: #999; font-size: 11px; }
+.vs-pane input[type=text], .vs-pane select, .vs-pane textarea, #vs-new-dialog input[type=text], #vs-new-dialog select { width: 100%; background: #141518; color: inherit; border: 1px solid #3a3d46; border-radius: 4px; padding: 6px; font: inherit; }
+.vs-pane input[type=range] { width: 100%; }
+.vs-pane label.check, #vs-new-dialog label.check { display: flex; gap: 6px; align-items: flex-start; color: #cfd2d9; font-size: 12px; }
+.vs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.vs-box { border: 1px solid #343741; border-radius: 6px; padding: 10px 12px; margin: 10px 0; background: #181a1f; }
+.vs-box h4 { margin: 0 0 6px; font-size: 12px; color: #aeb2bd; text-transform: uppercase; letter-spacing: .04em; }
+.vs-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.vs-row.end { justify-content: flex-end; }
+.vs-hint { color: #8d919c; font-size: 11px; margin: 4px 0 0; }
+.vs-err { color: #ff8a8a; font-size: 12px; margin: 6px 0 0; }
+.vs-meter { height: 8px; border-radius: 4px; background: #2a2c33; overflow: hidden; margin: 6px 0; }
+.vs-meter > i { display: block; height: 100%; background: #3fb984; }
+.vs-meter > i.fair { background: #d6a63a; }
+.vs-meter > i.poor { background: #d65a5a; }
+.vs-tips { margin: 6px 0 0 16px; padding: 0; color: #aeb2bd; font-size: 12px; }
+.vs-sample { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid #2a2c33; }
+.vs-sample audio { height: 28px; flex: 1; min-width: 0; }
+.vs-sample span { font-size: 11px; color: #aeb2bd; min-width: 90px; }
+.vs-rec { color: #ff6b6b; font-variant-numeric: tabular-nums; }
+.vs-seg { display: grid; grid-template-columns: 22px 1fr 190px; gap: 8px; align-items: start; padding: 6px 0; border-top: 1px solid #2a2c33; }
+.vs-seg textarea { resize: vertical; }
+.vs-seg .side { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.vs-seg .side div { display: flex; gap: 4px; }
+.vs-seg .side button { flex: 1; padding: 4px 6px; font-size: 12px; }
+.vs-seg .st { font-size: 11px; color: #8d919c; }
+.vs-seg .st.done { color: #6fd3a3; } .vs-seg .st.failed { color: #ff8a8a; } .vs-seg .st.running, .vs-seg .st.queued { color: #e8c76a; }
+.vs-ai-note { display: inline-block; font-size: 10px; background: #5b3fb0; color: #fff; border-radius: 3px; padding: 1px 5px; }
+.clip .ai-badge { position: absolute; right: 10px; top: 2px; font-size: 9px; background: #5b3fb0; color: #fff; border-radius: 3px; padding: 0 4px; z-index: 1; pointer-events: none; }
+#inspector .vs-ai { margin-top: 12px; padding-top: 8px; border-top: 1px solid #343741; }
+#inspector .vs-ai textarea { width: 100%; background: #141518; color: inherit; border: 1px solid #3a3d46; border-radius: 4px; padding: 6px; font: inherit; }
+@media (max-width: 820px) {
+  .vs-body { grid-template-columns: 1fr; grid-template-rows: 150px 1fr; }
+  .vs-lib { border-right: none; border-bottom: 1px solid #2c2f37; }
+  .vs-grid { grid-template-columns: 1fr; }
+  .vs-seg { grid-template-columns: 22px 1fr; } .vs-seg .side { grid-column: 2; }
+}

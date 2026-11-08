@@ -1,0 +1,30 @@
+# macOS / exFAT
+._*
+.DS_Store
+
+# Local backups
+*.before-*
+*.bak
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Large local data (models download on first use; media and renders stay on this machine)
+models/
+media/
+work/
+*.log
+
+# Claude Code local settings
+.claude/
+
+# Anything that might hold keys or personal voice data
+*.env
+.env*
+ai_config.json
+voice_config.json
+voice_data/
+bridge_token
+skills-lock.json

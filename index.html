@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LexCut</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="voice.css">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<header>
+  <b class="logo">LexCut</b>
+  <nav class="menus">
+    <div class="menu">
+      <button class="menu-btn" aria-haspopup="true">File</button>
+      <div class="menu-panel">
+        <button id="btn-new" title="Start a new empty project">New project</button>
+        <button id="btn-import">Import media…</button>
+        <button id="btn-folder" title="Pick a folder of media files. Claude can add them to the timeline for you">Media folder…</button>
+        <button id="btn-srt">Import captions (SRT/VTT)…</button>
+        <button id="btn-srt-out" title="Download the captions on a text layer (including translated layers) as SRT or VTT">Export captions (SRT/VTT)…</button>
+        <hr>
+        <button id="btn-save">Save project</button>
+        <button id="btn-load">Load project…</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-btn" aria-haspopup="true">Add</button>
+      <div class="menu-panel">
+        <button id="btn-text">Text</button>
+        <button id="btn-fxlib" title="Particles, lens flare, cinematic effects, shapes and counters">Effects &amp; graphics…</button>
+        <button id="btn-titles" title="Animated titles and lower thirds">Titles &amp; lower thirds…</button>
+        <hr>
+        <button id="btn-layer-text" title="Add a new text layer">Text layer</button>
+        <button id="btn-layer-video" title="Add a new video/image layer">Video layer</button>
+        <button id="btn-layer-audio" title="Add a new audio layer">Audio layer</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-btn" aria-haspopup="true">Text</button>
+      <div class="menu-panel">
+        <button id="btn-selall-text" title="Select every text clip on the timeline (Ctrl/Cmd+A)">Select all text <kbd>Ctrl/⌘ A</kbd></button>
+        <button id="btn-cl" title="Make captions shorter or longer">Caption length…</button>
+        <button id="btn-wc" title="Count words in a time range">Word count…</button>
+        <hr>
+        <button id="btn-titles-2" title="Professional titles, lower thirds, chapter titles, quotes">Text presets (titles &amp; lower thirds)…</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-btn" aria-haspopup="true">AI</button>
+      <div class="menu-panel">
+        <button id="btn-tr">Transcript (speech to text)…</button>
+        <button id="btn-smart" title="Scene detection, silence removal and highlight detection">Smart tools: scenes, silence, highlights…</button>
+        <button id="btn-cloud" title="Paid, via Replicate: generate video, remove background, enhance faces, fix eye contact">AI Cloud tools (paid): video, background, face, eyes…</button>
+        <button id="btn-ai">Claude AI (clean, translate, write)…</button>
+        <button id="btn-vs" title="Clone a voice you own and generate narration from text">AI Voice Studio…</button>
+      </div>
+    </div>
+  </nav>
+  <select id="aspect" title="Canvas size">
+    <optgroup label="Landscape 16:9">
+      <option value="1280x720">16:9 HD 720p</option>
+      <option value="1920x1080">16:9 Full HD 1080p</option>
+      <option value="2560x1440">16:9 2K (1440p)</option>
+      <option value="3840x2160">16:9 4K UHD</option>
+    </optgroup>
+    <optgroup label="Cinema">
+      <option value="1920x804">2.39:1 Cinemascope HD</option>
+      <option value="3840x1608">2.39:1 Cinemascope 4K</option>
+      <option value="2048x1080">DCI 2K (1.9:1)</option>
+      <option value="4096x2160">DCI 4K (1.9:1)</option>
+    </optgroup>
+    <optgroup label="Vertical 9:16">
+      <option value="720x1280">9:16 HD</option>
+      <option value="1080x1920">9:16 Full HD</option>
+      <option value="2160x3840">9:16 4K</option>
+    </optgroup>
+    <optgroup label="Square and social">
+      <option value="1080x1080">1:1 Square</option>
+      <option value="1080x1350">4:5 Portrait</option>
+    </optgroup>
+  </select>
+  <span class="spacer"></span>
+  <button id="btn-undo" title="Ctrl+Z">Undo</button>
+  <button id="btn-redo" title="Ctrl+Shift+Z">Redo</button>
+  <button id="btn-export" class="primary">Export…</button>
+  <input id="file-media" type="file" accept="video/*,audio/*,image/*" multiple hidden>
+  <input id="file-srt" type="file" accept=".srt,.vtt,text/vtt" hidden>
+  <input id="file-proj" type="file" accept=".json,application/json" hidden>
+</header>
+
+<main>
+  <div id="left">
+  <aside id="bin">
+    <h3>Media</h3>
+    <div id="bin-list"><p class="muted">Drop files here or click Import media. Drag items onto the timeline, or double-click to add.</p></div>
+    <div id="folder-box"></div>
+  </aside>
+  <div id="chat">
+    <h3>Claude chat <small class="muted">controls the editor</small></h3>
+    <div id="chat-log"></div>
+    <textarea id="chat-input" rows="2" placeholder="e.g. split at 5s and make the second part black and white"></textarea>
+    <button id="chat-send" class="primary">Send</button>
+  </div>
+  </div>
+
+  <section id="stage">
+    <div id="canvas-wrap"><canvas id="canvas" width="1280" height="720"></canvas></div>
+    <div id="transport">
+      <button id="btn-start" title="Go to start (Home)"></button>
+      <button id="btn-play" title="Play / pause (Space)"></button>
+      <span class="sep"></span>
+      <button id="btn-split" title="Split at the playhead (S)"></button>
+      <button id="btn-dup" title="Duplicate (D)"></button>
+      <button id="btn-trimin" title="Trim start: cut the start of the clip up to the playhead (Q)"></button>
+      <button id="btn-trimout" title="Trim end: cut the end of the clip after the playhead (W)"></button>
+      <span class="sep"></span>
+      <button id="btn-del" title="Delete, leaves a gap (Delete)"></button>
+      <button id="btn-ripple" title="Ripple delete: delete and close the gap (Shift+Delete)"></button>
+      <button id="btn-frame" title="Save the current frame as PNG"></button>
+      <span class="sep"></span>
+      <div class="menu tl-menu">
+        <button class="menu-btn" id="btn-tlmenu" title="More timeline tools" aria-haspopup="true"></button>
+        <div class="menu-panel up">
+          <button id="tl-snap">Snapping <kbd>N</kbd></button>
+          <button id="tl-splitall" title="Cut every layer at the playhead">Split all layers at playhead <kbd>Shift S</kbd></button>
+          <hr>
+          <button id="tl-copy">Copy clip <kbd>Ctrl/⌘ C</kbd></button>
+          <button id="tl-paste">Paste at playhead <kbd>Ctrl/⌘ V</kbd></button>
+          <hr>
+          <button id="tl-freeze" title="Hold the current frame of the video for 2 seconds">Freeze frame (2 s)</button>
+          <button id="tl-speed05">Speed 0.5x (slow)</button>
+          <button id="tl-speed1">Normal speed 1x</button>
+          <button id="tl-speed2">Speed 2x (fast)</button>
+          <button id="tl-fade">Fade in and out (1 s)</button>
+          <button id="tl-mixer" title="Volume, pan, mute and solo for every audio layer, with level meters">Audio mixer…</button>
+          <button id="tl-bgm" title="Add music under the whole video, lowered automatically while people speak">Background music…</button>
+          <button id="tl-merge" title="Join touching pieces of the same clip back into one (select 2 or more, or one clip to join it with the next)">Merge touching clips</button>
+          <button id="tl-trans" title="Add a transition between this clip and the one before it">Transition…</button>
+          <hr>
+          <button id="tl-delgap" title="Close the empty space under the playhead">Delete gap at playhead</button>
+          <button id="tl-closegaps" title="Remove every gap on the layer of the selected clip">Close all gaps on this layer</button>
+          <button id="tl-nudgel">Nudge clip back 1 frame <kbd>,</kbd></button>
+          <button id="tl-nudger">Nudge clip forward 1 frame <kbd>.</kbd></button>
+          <hr>
+          <button id="tl-marker">Add / remove marker <kbd>M</kbd></button>
+          <button id="tl-prevmk">Previous marker</button>
+          <button id="tl-nextmk">Next marker</button>
+          <button id="tl-prevcut">Previous cut <kbd>↑</kbd></button>
+          <button id="tl-nextcut">Next cut <kbd>↓</kbd></button>
+          <hr>
+          <button id="tl-selall">Select all clips</button>
+          <button id="tl-selfwd">Select all clips after playhead</button>
+          <hr>
+          <button id="tl-zoomfit">Zoom to fit</button>
+          <button id="tl-zoomin">Zoom in</button>
+          <button id="tl-zoomout">Zoom out</button>
+        </div>
+      </div>
+      <span id="time">00:00.00 / 00:00.00</span>
+      <span class="spacer"></span>
+      <label>Zoom <input id="zoom" type="range" min="10" max="300" value="80"></label>
+    </div>
+  </section>
+
+  <aside id="inspector"><p class="muted">Select a clip</p></aside>
+</main>
+
+<section id="timeline">
+  <div id="labels"></div>
+  <div id="tl-scroll"><div id="tl-inner"></div></div>
+</section>
+
+<dialog id="ex-dialog">
+  <form method="dialog">
+    <h3>Export</h3>
+    <label>Preset</label>
+    <select id="ex-preset">
+      <option value="">Manual (project size, choose format)</option>
+      <option value="yt1080">YouTube 1080p</option>
+      <option value="yt4k">YouTube 4K</option>
+      <option value="tiktok">TikTok 9:16</option>
+      <option value="reels">Instagram Reels</option>
+      <option value="facebook">Facebook</option>
+      <option value="shorts">YouTube Shorts</option>
+      <option value="cinema4k">Cinema 4K</option>
+      <option value="custom">Custom resolution and frame rate</option>
+    </select>
+    <div id="ex-size">
+      <span><label>Width</label><input id="ex-w" type="number" min="16" max="7680" step="2" placeholder="project"></span>
+      <span><label>Height</label><input id="ex-h" type="number" min="16" max="7680" step="2" placeholder="project"></span>
+      <span><label>Frame rate</label><input id="ex-fps" type="number" min="1" max="120" placeholder="as is"></span>
+    </div>
+    <label>Format</label>
+    <select id="ex-fmt">
+      <optgroup label="Video">
+        <option value="mp4-h264">MP4 (H.264) - general video</option>
+        <option value="mp4-h265">MP4 (H.265) - high-quality compressed</option>
+        <option value="mov">MOV (ProRes) - professional editing</option>
+        <option value="webm">WebM - web video</option>
+        <option value="avi">AVI - legacy compatibility</option>
+        <option value="mkv">MKV - flexible container</option>
+        <option value="gif">GIF - animated clip</option>
+      </optgroup>
+      <optgroup label="Audio">
+        <option value="mp3">MP3 - audio export</option>
+        <option value="wav">WAV - high-quality audio</option>
+      </optgroup>
+      <optgroup label="Subtitles">
+        <option value="srt">SRT - subtitles</option>
+        <option value="vtt">VTT - subtitles</option>
+      </optgroup>
+    </select>
+    <p id="ex-note" class="muted"></p>
+    <div class="row">
+      <button type="button" id="ex-cancel">Cancel</button>
+      <button type="button" id="ex-go" class="primary">Export</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="ai-dialog">
+  <form method="dialog" id="ai-form">
+    <h3>Claude AI <small class="muted">runs on your Claude Pro login</small></h3>
+    <label>Action</label>
+    <select id="ai-action">
+      <option value="clean">Clean up captions (typos, punctuation)</option>
+      <option value="translate">Translate captions</option>
+      <option value="shorten">Shorten captions to fit the screen</option>
+      <option value="write">Write captions from a topic</option>
+    </select>
+    <label id="ai-label">Language</label>
+    <textarea id="ai-input" rows="3" placeholder="e.g. Sinhala"></textarea>
+    <p id="ai-status" class="muted"></p>
+    <div class="row">
+      <button type="button" id="ai-cancel">Close</button>
+      <button type="button" id="ai-run" class="primary">Run</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="cl-dialog">
+  <form method="dialog">
+    <h3>Caption length <small class="muted">make sentences shorter or longer</small></h3>
+    <label><input type="checkbox" id="cl-auto"> Auto: fit the captions to the screen shape</label>
+    <p id="cl-auto-info" class="muted"></p>
+    <label>Words per caption: <b id="cl-val"></b></label>
+    <input id="cl-words" type="range" min="1" max="30" value="8">
+    <div class="row" style="justify-content:flex-start">
+      <button type="button" data-w="4">Short (4)</button>
+      <button type="button" data-w="8">Medium (8)</button>
+      <button type="button" data-w="16">Long (16)</button>
+    </div>
+    <p id="cl-info" class="muted"></p>
+    <div class="row">
+      <button type="button" id="cl-close">Close</button>
+      <button type="button" id="cl-apply" class="primary">Apply</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="wc-dialog">
+  <form method="dialog">
+    <h3>Word count <small class="muted">text clips starting in a time range</small></h3>
+    <label>From (seconds or m:ss)</label>
+    <input id="wc-from" type="text" value="0">
+    <button type="button" id="wc-here">Use playhead</button>
+    <label>To (empty = end of timeline)</label>
+    <input id="wc-to" type="text" value="">
+    <label><input type="checkbox" id="wc-show"> Show on the preview screen (not in the export)</label>
+    <p id="wc-result"></p>
+    <div class="row"><button type="button" id="wc-close" class="primary">Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="np-dialog">
+  <form method="dialog">
+    <h3>New project</h3>
+    <p>Start an empty project? The clips, layers and edits in the current project will be cleared (Cmd+Z cannot bring them back). Use Save project first if you want to keep them.</p>
+    <label class="check"><input type="checkbox" id="np-keep"> Keep the imported media in the Media list</label>
+    <div class="row">
+      <button type="button" id="np-cancel">Cancel</button>
+      <button type="button" id="np-save">Save project first</button>
+      <button type="button" id="np-yes" class="primary">New project</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="rm-dialog">
+  <form method="dialog">
+    <h3>Remove layer</h3>
+    <p id="rm-msg"></p>
+    <div class="row">
+      <button type="button" id="rm-no">Cancel</button>
+      <button type="button" id="rm-yes" class="primary">Remove</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="mx-dialog">
+  <form method="dialog">
+    <h3>Audio mixer <small class="muted">press play to see the level meters move</small></h3>
+    <div id="mx-rows"></div>
+    <div class="mx-row mx-master"><b>Master</b><label>Volume <input type="range" id="mx-master" min="0" max="200" step="1" value="100"><span id="mx-master-v">100%</span></label></div>
+    <p class="muted" id="mx-note"></p>
+    <div class="row"><button type="button" id="mx-close">Close</button></div>
+  </form>
+</dialog>
+<dialog id="bm-dialog">
+  <form method="dialog">
+    <h3>Background music <small class="muted">under the whole timeline</small></h3>
+    <label>Music file</label>
+    <select id="bm-asset"></select>
+    <div class="row" style="justify-content:flex-start"><button type="button" id="bm-add-file">Add a music file…</button></div>
+    <label>Music volume: <b id="bm-vol-v">25%</b></label><input type="range" id="bm-vol" min="5" max="100" step="1" value="25">
+    <label>Fade in and out: <b id="bm-fade-v">2 s</b></label><input type="range" id="bm-fade" min="0" max="8" step="0.5" value="2">
+    <label><input type="checkbox" id="bm-loop" checked> Repeat the music to fill the whole timeline</label>
+    <label><input type="checkbox" id="bm-duck" checked> Lower the music automatically while someone speaks</label>
+    <label>Lower by: <b id="bm-duck-v">14 dB</b></label><input type="range" id="bm-duck-db" min="6" max="30" step="1" value="14">
+    <p class="muted" id="bm-status"></p>
+    <div class="row"><button type="button" id="bm-close">Close</button><button type="button" id="bm-go" class="primary">Add music</button></div>
+  </form>
+</dialog>
+<dialog id="tx-dialog">
+  <form method="dialog">
+    <h3>Transition <small class="muted">between clips on the same layer</small></h3>
+    <p id="tx-info" class="muted"></p>
+    <label>Style</label>
+    <select id="tx-type"></select>
+    <label>Length: <b id="tx-val">1.0</b> s</label>
+    <input id="tx-dur" type="range" min="0.2" max="3" step="0.1" value="1">
+    <div class="row" style="justify-content:flex-start">
+      <button type="button" id="tx-sel" class="primary">Apply to the selected clip</button>
+      <button type="button" id="tx-all">Apply to every cut on this layer</button>
+      <button type="button" id="tx-rm">Remove</button>
+    </div>
+    <p id="tx-status" class="muted"></p>
+    <div class="row"><button type="button" id="tx-close">Close</button></div>
+  </form>
+</dialog>
+<dialog id="tr-dialog">
+  <form method="dialog">
+    <h3>Transcript <small class="muted">speech to text, runs on this computer</small></h3>
+    <p id="tr-clip" class="muted"></p>
+    <label>Language</label>
+    <select id="tr-lang">
+      <option value="">Auto-detect</option>
+      <option value="english">English</option>
+      <option value="sinhala">Sinhala</option>
+      <option value="tamil">Tamil</option>
+      <option value="hindi">Hindi</option>
+      <option value="chinese">Chinese</option>
+      <option value="spanish">Spanish</option>
+      <option value="french">French</option>
+      <option value="german">German</option>
+      <option value="japanese">Japanese</option>
+    </select>
+    <label>Model (bigger is slower and more accurate)</label>
+    <select id="tr-model">
+      <option value="local:large-v3">Large-v3 on this Mac (most accurate, about 3 GB, slow)</option>
+      <option value="Xenova/whisper-tiny">Tiny (about 40 MB)</option>
+      <option value="Xenova/whisper-base" selected>Base (about 80 MB)</option>
+      <option value="Xenova/whisper-small">Small (about 250 MB)</option>
+    </select>
+    <label class="muted" style="display:block;padding:2px 0"><input type="checkbox" id="tr-spk" checked> Label who is speaking (Person 1, Person 2…) &nbsp;·&nbsp; people: <select id="tr-spk-n"><option value="0">auto</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
+    <label class="muted" style="display:block;padding:2px 0"><input type="checkbox" id="tr-spk-out" checked> Include the speaker tag in the TXT download (never in captions or SRT)</label>
+    <datalist id="tr-voices"></datalist>
+    <label class="muted" style="display:block;padding:2px 0"><input type="checkbox" id="tr-remember" checked> Remember a voice when I name it, so the next videos recognise it automatically</label>
+    <div id="tr-names" hidden></div>
+    <p id="tr-status" class="muted"></p>
+    <textarea id="tr-text" rows="8" placeholder="The transcript appears here. You can edit it before adding captions." readonly></textarea>
+    <div class="row">
+      <button type="button" id="tr-close">Close</button>
+      <button type="button" id="tr-run" class="primary">Transcribe</button>
+    </div>
+    <div class="row">
+      <button type="button" id="tr-caps" disabled>Add as captions</button>
+      <button type="button" id="tr-srt" disabled>Download SRT</button>
+      <button type="button" id="tr-txt" disabled>Download TXT</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="transcribe.js"></script>
+<script src="app.js"></script>
+<script src="voice.js"></script>
+<script src="polish.js"></script>
+<script src="transitions.js"></script>
+<script src="audio.js"></script>
+<script src="titles.js"></script>
+<script src="effects.js"></script>
+<script src="aitools.js"></script>
+<script src="aicloud.js"></script>
+<script src="voicetools.js"></script>
+<script src="inspector-grid.js"></script>
+<script src="edit-api.js"></script>
+</body>
+</html>
