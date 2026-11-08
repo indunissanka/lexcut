@@ -420,8 +420,26 @@ function removeClips(cs) {   // delete clips together with their linked partners
 }
 // Cutting picture or sound also cuts the captions, voice and music that play with it, so they stay in sync.
 const isMediaClip = c => c && c.assetId != null && TRACKS[c.track] && TRACKS[c.track].kind !== 'text';
+const isVideoCut = c => [c, ...partners(c)].some(o => isMediaClip(o) && !o.audioOnly && assetOf(o) && assetOf(o).kind === 'video');   // a video clip or a video's own sound
 function splitCaptionsAt(t, skip) {   // split the text clips (captions) that run across time t
   for (const o of [...state.clips]) if (!skip.has(o.id) && TRACKS[o.track] && TRACKS[o.track].kind === 'text' && t > o.start + 0.05 && t < o.start + o.dur - 0.05) splitClip(o, t);
+}
+function removeCaptionsRange(s, e) {   // delete the captions shown in [s, e), keep the parts outside it
+  for (const o of [...state.clips]) {
+    if (!state.clips.includes(o) || !TRACKS[o.track] || TRACKS[o.track].kind !== 'text') continue;
+    const oe = o.start + o.dur;
+    if (oe <= s + 0.05 || o.start >= e - 0.05) continue;
+    const before = o.start < s - 0.05, after = oe > e + 0.05;
+    if (before && after) { const mid = splitClip(o, s); splitClip(mid, e); removeClips([mid]); }
+    else if (before) removeClips([splitClip(o, s)]);
+    else if (after) { splitClip(o, e); removeClips([o]); }
+    else removeClips([o]);
+  }
+}
+function deleteClipsWithCaptions(cs) {   // delete clips; deleting picture or sound also deletes the captions over it
+  const ranges = cs.filter(isVideoCut).map(c => [c.start, c.start + c.dur]);
+  removeClips(cs);
+  for (const [s, e] of ranges) removeCaptionsRange(s, e);
 }
 function rippleCutRange(s, e, skip) {   // remove [s, e) from every layer and move later clips left
   const d = e - s, done = new Set(skip), shift = g => { for (const x of [g, ...partners(g)]) x.start = Math.max(0, x.start - d); };
@@ -439,7 +457,7 @@ function rippleCutRange(s, e, skip) {   // remove [s, e) from every layer and mo
   }
 }
 function rippleRemove(c) {
-  if (isMediaClip(c)) {   // picture/sound: close the gap on every layer, captions included
+  if (isVideoCut(c)) {   // video: close the gap on every layer, captions included
     const ids = new Set([c.id, ...partners(c).map(p => p.id)]), s = c.start, e = c.start + c.dur;
     removeClips([c]);
     rippleCutRange(s, e, ids);
@@ -481,14 +499,14 @@ function splitAtPlayhead() {
   if (!c) return;
   pushHistory();
   const right = splitClip(c, t);
-  if (isMediaClip(c)) splitCaptionsAt(t, new Set([c.id, right.id, ...partners(c).map(p => p.id), ...partners(right).map(p => p.id)]));
+  if (isVideoCut(c)) splitCaptionsAt(t, new Set([c.id, right.id, ...partners(c).map(p => p.id), ...partners(right).map(p => p.id)]));
   state.sel = right.id;
   afterEdit();
 }
 function deleteSel() {
   if (state.sel == null) return;
   pushHistory();
-  removeClips(multiClips().length ? multiClips() : [selClip()].filter(Boolean));
+  deleteClipsWithCaptions(multiClips().length ? multiClips() : [selClip()].filter(Boolean));
   state.sel = null;
   state.multi = [];
   afterEdit();
@@ -2484,11 +2502,11 @@ async function chatExec(a) {
       const c = a.clip != null ? pick() : state.clips.find(o => t > o.start + 0.05 && t < o.start + o.dur - 0.05);
       if (!c || !(t > c.start + 0.05 && t < c.start + c.dur - 0.05)) throw new Error('nothing to split at that time');
       const right = splitClip(c, t);
-      if (isMediaClip(c)) splitCaptionsAt(t, new Set([c.id, right.id, ...partners(c).map(p => p.id), ...partners(right).map(p => p.id)]));
+      if (isVideoCut(c)) splitCaptionsAt(t, new Set([c.id, right.id, ...partners(c).map(p => p.id), ...partners(right).map(p => p.id)]));
       state.sel = right.id;
       break;
     }
-    case 'delete': { const c = pick(); removeClips([c]); if (!selClip()) state.sel = null; break; }
+    case 'delete': { const c = pick(); deleteClipsWithCaptions([c]); if (!selClip()) state.sel = null; break; }
     case 'ripple_delete': {
       rippleRemove(pick());
       state.sel = null;
