@@ -1,6 +1,7 @@
 """Voice Studio extras that run on this computer: ready-made male and female voices with speed, pitch and tone.
 
 macOS uses its system voices (`say`). Windows uses its built-in speech voices (System.Speech through PowerShell).
+Linux uses eSpeak NG (`espeak-ng`), with a male and a female variant of each language.
 Tone presets only change speed and pitch (and pauses); they are not emotion modelling.
 """
 import json
@@ -100,11 +101,57 @@ def _win_speak(voice, text, wpm_factor, semis, pause, d: Path) -> Path:
     return raw
 
 
+# ---- Linux: eSpeak NG. Each language gets a male voice and a female variant (+f3). ----
+_ESPEAK = {}   # display name -> espeak voice argument
+
+
+def _espeak_exe():
+    return which("espeak-ng") or which("espeak")
+
+
+def _espeak_list_voices():
+    exe = _espeak_exe()
+    if not exe:
+        return []
+    r = subprocess.run([exe, "--voices"], capture_output=True, text=True, errors="replace", timeout=30)
+    out = []
+    for line in r.stdout.splitlines()[1:]:
+        cols = line.split()
+        if len(cols) < 5:
+            continue
+        code, label = cols[1], cols[3].replace("_", " ")
+        parts = code.split("-")
+        loc = parts[0] + ("_" + parts[1].upper() if len(parts) > 1 else "")
+        for gender, arg in (("male", code), ("female", code + "+f3")):
+            name = f"{label} ({gender})"
+            _ESPEAK[name] = arg
+            out.append({"name": name, "locale": loc, "lang": parts[0], "gender": gender, "sample": ""})
+    return out
+
+
+def _espeak_speak(voice, text, wpm, semis, pause, d: Path) -> Path:
+    if not _ESPEAK:
+        _espeak_list_voices()
+    raw = d / "raw.wav"
+    if pause > 1:   # longer pauses after sentences (espeak reads SSML breaks with -m)
+        from xml.sax.saxutils import escape
+        brk = f'<break time="{int(250 * (pause - 1))}ms"/>'
+        text = "<speak>" + brk.join(escape(t) for t in re.split(r"(?<=[.!?。！？])\s+", text) if t.strip()) + "</speak>"
+        args = ["-m"]
+    else:
+        args = []
+    r = subprocess.run([_espeak_exe(), *args, "-v", _ESPEAK[voice], "-s", str(wpm), "-w", str(raw), "--stdin"],
+                       input=text, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
+    if r.returncode or not raw.exists():
+        raise RuntimeError((r.stderr or "espeak-ng failed").strip()[:300])
+    return raw
+
+
 def list_voices():
     if IS_WIN:
         return _win_list_voices()
     if not shutil.which("say"):
-        return []   # Linux: no built-in system voices
+        return _espeak_list_voices()   # Linux (empty if eSpeak NG is not installed)
     r = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, timeout=30)
     out = []
     for line in r.stdout.splitlines():
@@ -131,11 +178,12 @@ def speak(voice, text, speed=1.0, pitch=0.0, tone="neutral"):
     sp, ps, pause = TONES.get(tone, TONES["neutral"])
     wpm = int(max(80, min(450, 175 * float(speed) * sp)))
     semis = max(-12, min(12, float(pitch) + ps))
-    if IS_WIN:
+    if IS_WIN or not shutil.which("say"):
         with tempfile.TemporaryDirectory() as d:
-            raw, wav = _win_speak(voice, text, wpm / 175, semis, pause, Path(d)), Path(d) / "o.wav"
+            raw = _win_speak(voice, text, wpm / 175, semis, pause, Path(d)) if IS_WIN else _espeak_speak(voice, text, wpm, semis, pause, Path(d))
+            wav = Path(d) / "o.wav"
             af = "aresample=24000"
-            if abs(semis) >= 0.5:   # SAPI has no reliable pitch control: shift the pitch with ffmpeg, keeping the speed
+            if abs(semis) >= 0.5:   # shift the pitch with ffmpeg, keeping the speed (SAPI has no reliable pitch control)
                 f = 2 ** (semis / 12)
                 af += f",asetrate={int(24000 * f)},aresample=24000,atempo={1 / f:.5f}"
             r = subprocess.run([FFMPEG, "-hide_banner", "-nostdin", "-y", "-i", str(raw), "-af", af, "-ac", "1", "-ar", "24000", "-c:a", "pcm_s16le", str(wav)],

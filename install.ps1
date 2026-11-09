@@ -53,7 +53,7 @@ Say 'Transcription environment (.venv, faster-whisper)'
 $VenvPy = Join-Path $Root '.venv\Scripts\python.exe'
 if (-not (Test-Path $VenvPy)) { Run $Py -m venv (Join-Path $Root '.venv') }
 Run $VenvPy -m pip install -q --upgrade pip
-Run $VenvPy -m pip install -q -r (Join-Path $Root 'requirements\whisper-windows.txt')
+Run $VenvPy -m pip install -q -r (Join-Path $Root 'requirements\whisper-faster.txt')
 
 # 3. Voice Studio, speaker labels, voice tools
 $TtsPy = Join-Path $TtsVenv 'Scripts\python.exe'
