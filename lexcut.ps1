@@ -10,7 +10,13 @@ function Test-Running {
   try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri $Url | Out-Null; return $true } catch { return $false }
 }
 function Get-ServerPids {
-  @(Get-NetTCPConnection -LocalPort ([int]$Port) -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique)
+  # Only LexCut's own server: a Python process running server.py from this folder. Another program on the port is left alone.
+  $script = Join-Path $Root 'server.py'
+  @(Get-NetTCPConnection -LocalPort ([int]$Port) -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique |
+    Where-Object {
+      $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId = $_" -ErrorAction SilentlyContinue).CommandLine
+      $cmd -and ($cmd -like '*server.py*') -and (($cmd -like "*$script*") -or ((Get-Process -Id $_ -ErrorAction SilentlyContinue).Path -like "$Root*"))
+    })
 }
 
 if ($Action -eq 'stop') {
@@ -34,7 +40,7 @@ if (-not (Test-Running)) {
     exit 1
   }
   $log = Join-Path $env:TEMP 'lexcut.log'
-  Start-Process -FilePath $py -ArgumentList @('server.py', $Port) -WorkingDirectory $Root -WindowStyle Hidden `
+  Start-Process -FilePath $py -ArgumentList @("`"$(Join-Path $Root 'server.py')`"", $Port) -WorkingDirectory $Root -WindowStyle Hidden `
     -RedirectStandardOutput $log -RedirectStandardError "$log.err"
   for ($i = 0; $i -lt 30 -and -not (Test-Running); $i++) { Start-Sleep -Milliseconds 500 }
   if (-not (Test-Running)) {
