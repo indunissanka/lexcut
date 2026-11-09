@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# LexCut installer for macOS on Apple Silicon. Safe to run again: it only adds what is missing.
+# LexCut installer for macOS and Linux (Windows: use install.cmd). Safe to run again: it only adds what is missing.
 #
 #   ./install.sh                  everything (system tools, transcription, voice, launchers)
 #   ./install.sh --no-voice       skip the ~2 GB voice environment (Voice Studio, speaker labels, Sinhala voice and transcription)
-#   ./install.sh --no-launcher    do not create ~/Applications/LexCut.app and Stop LexCut.app
+#   ./install.sh --no-launcher    do not create the LexCut and Stop LexCut launchers (Mac: ~/Applications, Linux: app menu)
 #   ./install.sh --download-models  also download the Whisper, Sinhala Whisper and OpenVoice models now instead of on first use
 #   ./install.sh --mcp            also register the Claude connector (claude mcp add opencut ...)
 #
@@ -27,24 +27,63 @@ TTS_VENV="${LEXCUT_TTS_VENV:-$HOME/.opencut/venv-tts}"
 PORT="${LEXCUT_PORT:-8765}"
 say() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 
-[ "$(uname -s)" = Darwin ] || { echo "LexCut needs macOS."; exit 1; }
-[ "$(uname -m)" = arm64 ] || echo "Warning: transcription (mlx-whisper) needs Apple Silicon; it will not work on this Mac."
+OS="$(uname -s)"
+case "$OS" in
+  Darwin|Linux) ;;
+  *) echo "This installer is for macOS and Linux. On Windows, double-click install.cmd."; exit 1 ;;
+esac
+# Apple Silicon Macs use mlx-whisper; Intel Macs and Linux use faster-whisper (CPU, or an NVIDIA GPU with CUDA).
+if [ "$OS" = Darwin ] && [ "$(uname -m)" = arm64 ]; then WHISPER=mlx; else WHISPER=faster; fi
 
 # 1. System tools
-say "System tools (Homebrew, Python 3.11, ffmpeg)"
-if ! command -v brew >/dev/null; then
-  for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && eval "$("$b" shellenv)"; done
+if [ "$OS" = Darwin ]; then
+  say "System tools (Homebrew, Python 3.11, ffmpeg)"
+  if ! command -v brew >/dev/null; then
+    for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && eval "$("$b" shellenv)"; done
+  fi
+  command -v brew >/dev/null || { echo "Install Homebrew first: https://brew.sh  then run ./install.sh again."; exit 1; }
+  for p in python@3.11 ffmpeg; do brew list "$p" >/dev/null 2>&1 || brew install "$p"; done
+  PY="$(brew --prefix python@3.11)/bin/python3.11"
+else
+  say "System tools (Python 3, ffmpeg, eSpeak NG voices)"
+  SUDO=""; [ "$(id -u)" = 0 ] || SUDO="sudo"
+  if command -v apt-get >/dev/null; then
+    $SUDO apt-get update -q
+    $SUDO apt-get install -y -q python3 python3-venv python3-dev ffmpeg espeak-ng curl build-essential
+  elif command -v dnf >/dev/null; then
+    $SUDO dnf install -y python3 python3-devel ffmpeg-free espeak-ng curl gcc gcc-c++ \
+      || $SUDO dnf install -y python3 python3-devel ffmpeg espeak-ng curl gcc gcc-c++
+  elif command -v pacman >/dev/null; then
+    $SUDO pacman -S --needed --noconfirm python ffmpeg espeak-ng curl base-devel
+  elif command -v zypper >/dev/null; then
+    $SUDO zypper --non-interactive install python3 python3-devel ffmpeg espeak-ng curl gcc gcc-c++
+  else
+    echo "Unknown package manager. Install Python 3.10-3.12 (with venv), ffmpeg, espeak-ng and curl, then run ./install.sh again."
+  fi
+  # The AI libraries support Python 3.10-3.12: take the first suitable one.
+  PY=""
+  for c in python3.11 python3.12 python3.10 python3; do
+    if command -v "$c" >/dev/null && "$c" -c 'import sys; sys.exit(not ((3, 10) <= sys.version_info[:2] <= (3, 12)))'; then
+      PY="$(command -v "$c")"; break
+    fi
+  done
+  if [ -z "$PY" ]; then
+    echo "Python 3.10, 3.11 or 3.12 is needed (this system has $(python3 --version 2>&1))."
+    echo "Install one (with your package manager, pyenv or uv), then run ./install.sh again."
+    exit 1
+  fi
+  if ! "$PY" -c 'import venv, ensurepip' 2>/dev/null && command -v apt-get >/dev/null; then
+    $SUDO apt-get install -y -q "python$("$PY" -c 'import sys; print("%d.%d" % sys.version_info[:2])')-venv"
+  fi
 fi
-command -v brew >/dev/null || { echo "Install Homebrew first: https://brew.sh  then run ./install.sh again."; exit 1; }
-for p in python@3.11 ffmpeg; do brew list "$p" >/dev/null 2>&1 || brew install "$p"; done
-PY="$(brew --prefix python@3.11)/bin/python3.11"
 "$PY" --version
 
 # 2. Transcription (.venv next to server.py)
-say "Transcription environment (.venv, mlx-whisper)"
+if [ "$WHISPER" = mlx ]; then REQ=whisper.txt; else REQ=whisper-faster.txt; fi
+say "Transcription environment (.venv, $WHISPER-whisper)"
 [ -x "$ROOT/.venv/bin/python" ] || "$PY" -m venv "$ROOT/.venv"
 "$ROOT/.venv/bin/python" -m pip install -q --upgrade pip
-"$ROOT/.venv/bin/python" -m pip install -q -r "$ROOT/requirements/whisper.txt"
+"$ROOT/.venv/bin/python" -m pip install -q -r "$ROOT/requirements/$REQ"
 
 # 3. Voice Studio, speaker labels, voice tools (kept on the internal disk: ._ files on exFAT drives break pip)
 if [ "$VOICE" = 1 ]; then
@@ -65,7 +104,11 @@ fi
 # 4. Optional: Whisper model now
 if [ "$MODELS" = 1 ]; then
   say "Downloading models into models/"
-  HF_HOME="$ROOT/models" "$ROOT/.venv/bin/python" -c "from huggingface_hub import snapshot_download; snapshot_download('mlx-community/whisper-large-v3-mlx')"
+  if [ "$WHISPER" = mlx ]; then
+    HF_HOME="$ROOT/models" "$ROOT/.venv/bin/python" -c "from huggingface_hub import snapshot_download; snapshot_download('mlx-community/whisper-large-v3-mlx')"
+  else
+    HF_HOME="$ROOT/models" "$ROOT/.venv/bin/python" -c "from faster_whisper.utils import download_model; download_model('large-v3')"
+  fi
   if [ "$VOICE" = 1 ]; then
     HF_HUB_CACHE="$ROOT/models/hub" "$TTS_VENV/bin/python" -c "from huggingface_hub import snapshot_download; snapshot_download('SinhaSpeech/whisper-small-sinhala-run12-best')"
     TTS_HOME="$ROOT/models/tts" COQUI_TOS_AGREED=1 "$TTS_VENV/bin/python" -c "from TTS.api import TTS; TTS('voice_conversion_models/multilingual/multi-dataset/openvoice_v2')" >/dev/null
@@ -88,7 +131,21 @@ else
 fi
 
 # 6. Launchers
-if [ "$LAUNCHER" = 1 ]; then
+chmod +x "$ROOT/lexcut.sh"
+if [ "$LAUNCHER" = 1 ] && [ "$OS" = Linux ]; then
+  say "Launchers in the app menu"
+  apps="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+  mkdir -p "$apps"
+  for pair in "LexCut|start|video-x-generic|lexcut" "Stop LexCut|stop|process-stop|stop-lexcut"; do
+    IFS='|' read -r name act icon file <<<"$pair"
+    printf '%s\n' "[Desktop Entry]" "Type=Application" "Name=$name" "Comment=LexCut video editor ($act the local server)" \
+      "Exec=\"$ROOT/lexcut.sh\" $act $PORT" "Icon=$icon" "Terminal=false" "Categories=AudioVideo;Video;AudioVideoEditing;" > "$apps/$file.desktop"
+    chmod +x "$apps/$file.desktop"
+    echo "Created $apps/$file.desktop"
+  done
+  if command -v update-desktop-database >/dev/null; then update-desktop-database "$apps" 2>/dev/null || true; fi
+fi
+if [ "$LAUNCHER" = 1 ] && [ "$OS" = Darwin ]; then
   say "Launchers in ~/Applications"
   mkdir -p "$HOME/Applications"
   tmp="$(mktemp -d)"
@@ -141,7 +198,7 @@ fi
 say "Summary"
 ok() { if eval "$2"; then echo "  [x] $1"; else echo "  [ ] $1"; fi; }
 ok "ffmpeg (export, noise removal, scene and silence detection)" 'command -v ffmpeg >/dev/null'
-ok "Transcription (mlx-whisper)" '"$ROOT/.venv/bin/python" -c "import mlx_whisper" 2>/dev/null'
+ok "Transcription ($WHISPER-whisper)" '"$ROOT/.venv/bin/python" -c "import ${WHISPER}_whisper" 2>/dev/null'
 voice_ok() { [ -x "$TTS_VENV/bin/python" ] && "$TTS_VENV/bin/python" - <<'PY' 2>/dev/null
 import sys, types
 sys.modules["webrtcvad"] = types.ModuleType("webrtcvad")  # same stub the app uses
@@ -151,7 +208,12 @@ PY
 ok "Voice Studio and speaker labels" voice_ok
 ok "Sinhala voice (Piper + OpenVoice) and Sinhala transcription" '[ -s "$ROOT/models/piper/si_LK-sinhala-medium.onnx" ] && "$TTS_VENV/bin/python" -c "import piper, transformers" 2>/dev/null'
 ok "Claude features (claude CLI)" 'command -v claude >/dev/null || [ -x "$HOME/.local/bin/claude" ]'
+if [ "$OS" = Linux ]; then ok "Ready-made voices (eSpeak NG)" 'command -v espeak-ng >/dev/null || command -v espeak >/dev/null'; fi
 echo "  Paid cloud tools (Replicate) need no install: paste your key in AI > AI Cloud tools > Settings."
 echo
-echo "Start LexCut:  open ~/Applications/LexCut.app   (or: cd \"$ROOT\" && python3 server.py $PORT)"
+if [ "$OS" = Darwin ]; then
+  echo "Start LexCut:  open ~/Applications/LexCut.app   (or: \"$ROOT/lexcut.sh\" start)"
+else
+  echo "Start LexCut:  open LexCut from your app menu   (or: \"$ROOT/lexcut.sh\" start)"
+fi
 echo "Then open http://localhost:$PORT/ in Chrome."

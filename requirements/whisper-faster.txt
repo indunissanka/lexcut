@@ -1,0 +1,5 @@
+# Transcription environment for Windows, Linux and Intel Macs (.venv). Apple Silicon uses whisper.txt (mlx-whisper).
+# faster-whisper runs Whisper on the CPU, or on an NVIDIA GPU when CUDA 12 and cuDNN 9 are installed.
+faster-whisper>=1.1,<2
+numpy>=1.26
+huggingface_hub

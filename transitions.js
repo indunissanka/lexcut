@@ -26,7 +26,7 @@ $('#tx-close').onclick = () => $('#tx-dialog').close();
 $('#tx-sel').onclick = () => {
   const c = target(); if (!c) return;
   pushHistory(); setTr(c, cur()); afterEdit();
-  $('#tx-status').textContent = `Added: ${TRANSITIONS[cur().type]}, ${cur().dur} s. Press play to see it. Undo with Cmd+Z.`;
+  $('#tx-status').textContent = `Added: ${TRANSITIONS[cur().type]}, ${cur().dur} s. Press play to see it. Undo with Ctrl/Cmd+Z.`;
 };
 $('#tx-all').onclick = () => {
   const c = target(); if (!c) return;
@@ -34,7 +34,7 @@ $('#tx-all').onclick = () => {
   const hit = list.filter((o, i) => i > 0 && touches(list[i - 1], o));
   if (!hit.length) { $('#tx-status').textContent = 'No clips on this layer touch each other, so there are no cuts to add a transition to.'; return; }
   pushHistory(); for (const o of hit) setTr(o, cur()); afterEdit();
-  $('#tx-status').textContent = `Added ${TRANSITIONS[cur().type]} to ${hit.length} cut${hit.length > 1 ? 's' : ''}. Undo with Cmd+Z.`;
+  $('#tx-status').textContent = `Added ${TRANSITIONS[cur().type]} to ${hit.length} cut${hit.length > 1 ? 's' : ''}. Undo with Ctrl/Cmd+Z.`;
 };
 $('#tx-rm').onclick = () => {
   const c = target(); if (!c) return;

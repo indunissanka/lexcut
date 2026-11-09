@@ -9,10 +9,12 @@ import subprocess
 import threading
 from pathlib import Path
 
+from platform_util import venv_python
+
 from .. import config
 from .base import STYLES, Cancelled, VoiceEngine
 
-VENV_PY = Path(os.environ.get("LEXCUT_TTS_VENV") or config.HOME / "venv-tts") / "bin" / "python"
+VENV_PY = venv_python(os.environ.get("LEXCUT_TTS_VENV") or config.HOME / "venv-tts")
 WORKER = Path(__file__).resolve().parent.parent / "xtts_worker.py"
 SI_WORKER = Path(__file__).resolve().parent.parent / "sinhala_worker.py"
 PIPER_MODEL = Path(__file__).resolve().parents[2] / "models" / "piper" / "si_LK-sinhala-medium.onnx"

@@ -122,7 +122,7 @@ async function keepHighlights(c) {   // cut everything except the highlights
   for (const [s, e] of gaps.reverse()) cutOut(c, s, e);
   state.markers = []; lastHighlights = [];
   afterEdit();
-  return `Kept ${hs.length} highlights and removed the rest. Undo (Cmd+Z) brings the full video back.`;
+  return `Kept ${hs.length} highlights and removed the rest. Undo (Ctrl/Cmd+Z) brings the full video back.`;
 }
 
 // ---------- dialog ----------
@@ -148,7 +148,7 @@ document.body.append(dlg);
 const $s = id => document.getElementById(id);
 const note = (id, f) => { $s(id).oninput = () => $s(id + '-v').textContent = f($s(id).value); };
 note('sm-sens', v => (+v).toFixed(2)); note('sm-pause', v => v + ' s'); note('sm-n', v => v);
-const target = () => { const c = mediaClip(); $s('sm-target').textContent = c ? `Working on: ${clipKind(c) === 'text' ? '' : (assetOf(c) || {}).name || 'clip'} (${fmt(c.start)} to ${fmt(c.start + c.dur)}). Select another clip to change it. Undo with Cmd+Z.` : 'No video or audio on the timeline yet.'; return c; };
+const target = () => { const c = mediaClip(); $s('sm-target').textContent = c ? `Working on: ${clipKind(c) === 'text' ? '' : (assetOf(c) || {}).name || 'clip'} (${fmt(c.start)} to ${fmt(c.start + c.dur)}). Select another clip to change it. Undo with Ctrl/Cmd+Z.` : 'No video or audio on the timeline yet.'; return c; };
 async function run(btn, fn) {
   const c = target(), s = $s('sm-status');
   btn.disabled = true; s.textContent = 'Working… a long video takes a while. Keep this tab open.';

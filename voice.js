@@ -228,7 +228,7 @@ async function toggleRecord(v) {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
   } catch (e) {
-    const hint = e.name === 'NotAllowedError' ? ' Allow the microphone for this site (lock icon in the address bar) and, on macOS, for Chrome in System Settings → Privacy & Security → Microphone.'
+    const hint = e.name === 'NotAllowedError' ? ' Allow the microphone for this site (lock icon in the address bar). On macOS, also allow Chrome in System Settings → Privacy & Security → Microphone. On Windows, check Settings → Privacy & security → Microphone.'
       : e.name === 'NotFoundError' ? ' No microphone was found; check that one is connected and selected as the input device.'
       : e.name === 'NotReadableError' ? ' The microphone is busy or blocked; close other apps that use it.' : '';
     err.textContent = 'Could not use the microphone: ' + (e.message || e.name) + '.' + hint; return;

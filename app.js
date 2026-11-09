@@ -1926,7 +1926,7 @@ function beginLaneDrag(e, i) {
 // Remove a whole layer (and the clips on it) after the user confirms in a popup. Undo brings it back.
 function askRemoveLayer(i) {
   const n = state.clips.filter(c => c.track === i).length;
-  $('#rm-msg').textContent = `Remove "${TRACKS[i].name}"? ${n ? `${n} clip${n === 1 ? '' : 's'} on it will be deleted.` : 'It has no clips.'} You can undo this with Cmd+Z.`;
+  $('#rm-msg').textContent = `Remove "${TRACKS[i].name}"? ${n ? `${n} clip${n === 1 ? '' : 's'} on it will be deleted.` : 'It has no clips.'} You can undo this with Ctrl/Cmd+Z.`;
   $('#rm-yes').onclick = () => {
     $('#rm-dialog').close();
     pushHistory();
@@ -2625,7 +2625,7 @@ async function chatSend() {
 
 $('#chat-send').onclick = chatSend;
 $('#chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); } });
-chatSay('Tell me what to edit, for example "add the title Welcome for 4 seconds" or "make the first clip 2x faster". Each request can be undone with Cmd+Z.', 'bot');
+chatSay('Tell me what to edit, for example "add the title Welcome for 4 seconds" or "make the first clip 2x faster". Each request can be undone with Ctrl/Cmd+Z.', 'bot');
 
 
 // ---------- Bridge to the MCP connector (opencut_mcp.py): runs commands queued by server.py ----------
@@ -2733,11 +2733,11 @@ async function clipAudio(c) {
 
 const LANG_CODES = { english: 'en', sinhala: 'si', tamil: 'ta', hindi: 'hi', chinese: 'zh', spanish: 'es', french: 'fr', german: 'de', japanese: 'ja' };
 
-// Large-v3 runs in a Python process on this Mac (via server.py), much more accurate than the in-browser models.
+// Large-v3 runs in a Python process on this computer (via server.py), much more accurate than the in-browser models.
 async function localWhisper(audio, model, language, onStatus) {
   const pcm = new Int16Array(audio.length);
   for (let i = 0; i < audio.length; i++) pcm[i] = Math.max(-1, Math.min(1, audio[i])) * 32767;
-  onStatus(`Running Whisper ${model} on this Mac… long clips take a while. Keep this tab open.`);
+  onStatus(`Running Whisper ${model} on this computer… long clips take a while. Keep this tab open.`);
   const r = await fetch(`/api/transcribe?model=${model}&lang=${LANG_CODES[language] || ''}`, { method: 'POST', body: pcm });
   const j = await r.json().catch(() => ({ error: 'Unreadable reply. Open the editor through server.py.' }));
   if (!r.ok) throw new Error(j.error);
@@ -2755,7 +2755,7 @@ async function transcribeClip(c, model, language, onStatus) {
   return segs.map(s => ({ start: c.start + s.start / spd(c), end: c.start + s.end / spd(c), text: s.text, speaker: s.speaker }));
 }
 
-// Who speaks each line: voice fingerprints + clustering on this Mac (server.py). A failure never loses the transcript.
+// Who speaks each line: voice fingerprints + clustering on this computer (server.py). A failure never loses the transcript.
 async function labelSpeakers(audio, segs, onStatus) {
   const on = $('#tr-spk')?.checked;
   if (!on || !segs.length) return segs;

@@ -9,6 +9,7 @@ import json
 import mimetypes
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -17,6 +18,10 @@ import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
+
+from platform_util import which
+
+FFMPEG = which("ffmpeg") or "ffmpeg"
 
 HOME = Path.home() / ".opencut"
 CONFIG = Path(os.environ.get("OPENCUT_AI_CONFIG", HOME / "ai_config.json"))
@@ -208,7 +213,7 @@ def _run(job, slot, data, q):
             src, out = work / "in.bin", work / "clip.mp4"
             src.write_bytes(data)
             job["state"] = "preparing"
-            args = ["ffmpeg", "-hide_banner", "-nostdin", "-y"]
+            args = [FFMPEG, "-hide_banner", "-nostdin", "-y"]
             if q.get("ss"):
                 args += ["-ss", q["ss"]]
             args += ["-i", str(src)]
@@ -223,7 +228,7 @@ def _run(job, slot, data, q):
         elif slot in ("s2s", "isolate", "lipsync"):
             def audio_of(path, ss, t, name):
                 outp = work / name
-                a = ["ffmpeg", "-hide_banner", "-nostdin", "-y"] + (["-ss", ss] if ss else []) + ["-i", str(path)] + (["-t", t] if t else []) + ["-vn", "-ac", "2", "-ar", "44100", "-c:a", "pcm_s16le", str(outp)]
+                a = [FFMPEG, "-hide_banner", "-nostdin", "-y"] + (["-ss", ss] if ss else []) + ["-i", str(path)] + (["-t", t] if t else []) + ["-vn", "-ac", "2", "-ar", "44100", "-c:a", "pcm_s16le", str(outp)]
                 r = subprocess.run(a, capture_output=True, text=True, timeout=1800)
                 if r.returncode or not outp.exists():
                     raise RuntimeError("Could not prepare the sound: " + (r.stderr or "")[-200:])
@@ -236,7 +241,7 @@ def _run(job, slot, data, q):
                 if not aux:
                     raise RuntimeError("Choose the sound to lip sync to.")
                 vid = work / "clip.mp4"
-                r = subprocess.run(["ffmpeg", "-hide_banner", "-nostdin", "-y"] + (["-ss", q["ss"]] if q.get("ss") else []) + ["-i", str(src)] + (["-t", q["t"]] if q.get("t") else [])
+                r = subprocess.run([FFMPEG, "-hide_banner", "-nostdin", "-y"] + (["-ss", q["ss"]] if q.get("ss") else []) + ["-i", str(src)] + (["-t", q["t"]] if q.get("t") else [])
                                    + ["-an", "-vf", "scale='min(1280,iw)':-2", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(vid)], capture_output=True, text=True, timeout=1800)
                 if r.returncode or not vid.exists():
                     raise RuntimeError("Could not prepare the clip: " + (r.stderr or "")[-200:])
@@ -289,11 +294,11 @@ def _run(job, slot, data, q):
 def _gc():
     now = time.time()
     for k in [k for k, (t0, f) in AUX.items() if now - t0 > 7200]:
-        subprocess.run(["rm", "-rf", str(AUX.pop(k)[1].parent)])
+        shutil.rmtree(AUX.pop(k)[1].parent, ignore_errors=True)
     for k in [k for k, j in JOBS.items() if now - j["t"] > 7200]:
         d = JOBS.pop(k).get("dir")
         if d:
-            subprocess.run(["rm", "-rf", str(d)])
+            shutil.rmtree(d, ignore_errors=True)
 
 
 def handle(method, path, q, read_body):

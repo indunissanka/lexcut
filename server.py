@@ -16,10 +16,20 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+# Windows: run in Python's UTF-8 mode, so files, the claude CLI and the worker processes all use UTF-8
+# (the default Windows code page cannot hold Sinhala, Chinese and other scripts).
+if __name__ == "__main__" and os.name == "nt" and not sys.flags.utf8_mode:
+    os.environ["PYTHONUTF8"] = "1"
+    try:
+        sys.exit(subprocess.call([sys.executable, "-X", "utf8", *sys.argv]))
+    except KeyboardInterrupt:
+        sys.exit(0)
+
 sys.path.insert(0, str(Path(__file__).parent))
 from voice import api as voice_api
 import cloud
 import voicetools
+from platform_util import IS_MAC, venv_python, which
 
 HERE = Path(__file__).parent
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
@@ -27,8 +37,11 @@ ALLOWED_HOSTS = {f"127.0.0.1:{PORT}", f"localhost:{PORT}"}
 MAX_BODY = 1_000_000
 MAX_VISION = 16_000_000  # a few dozen small JPEG frames as base64
 MAX_AUDIO = 300_000_000  # 16 kHz 16-bit mono is about 115 MB per hour
-VENV_PY = HERE / ".venv" / "bin" / "python"
-WHISPER_MODELS = {"large-v3": "mlx-community/whisper-large-v3-mlx", "large-v3-turbo": "mlx-community/whisper-large-v3-turbo",
+VENV_PY = venv_python(HERE / ".venv")
+# Apple Silicon uses mlx-whisper; Windows and Linux use faster-whisper (CPU, or an NVIDIA GPU with CUDA).
+USE_MLX = IS_MAC and __import__("platform").machine() == "arm64"
+WHISPER_MODELS = {"large-v3": "mlx-community/whisper-large-v3-mlx" if USE_MLX else "large-v3",
+                  "large-v3-turbo": "mlx-community/whisper-large-v3-turbo" if USE_MLX else "large-v3-turbo",
                   "sinhala": "SinhaSpeech/whisper-small-sinhala-run12-best"}   # Whisper fine-tuned on Sinhala (Apache-2.0), runs in the voice environment
 
 
@@ -79,8 +92,7 @@ def bridge_call(op: str, args: dict, timeout: float = 120.0) -> dict:
 
 
 def find_claude():
-    path = os.pathsep.join([str(Path.home() / ".local/bin"), "/opt/homebrew/bin", "/usr/local/bin", os.environ.get("PATH", "")])
-    return shutil.which("claude", path=path)
+    return which("claude")
 
 
 def run_claude(system: str, prompt: str) -> str:
@@ -129,7 +141,7 @@ def run_claude_vision(system: str, prompt: str, images: list) -> str:
 def run_whisper(pcm: bytes, model: str, lang: str):
     if model == "sinhala":
         if not TTS_PY.exists():
-            raise RuntimeError("Sinhala transcription needs the voice environment (~/.opencut/venv-tts). Run ./install.sh.")
+            raise RuntimeError("Sinhala transcription needs the voice environment (~/.opencut/venv-tts). Run the installer again.")
         r = subprocess.run([str(TTS_PY), str(HERE / "sinhala_asr_worker.py"), WHISPER_MODELS[model]],
                            input=pcm, capture_output=True, timeout=3 * 3600,
                            env={**os.environ, "HF_HUB_CACHE": str(HERE / "models" / "hub"), "PYTORCH_ENABLE_MPS_FALLBACK": "1"})
@@ -137,7 +149,7 @@ def run_whisper(pcm: bytes, model: str, lang: str):
             raise RuntimeError(r.stderr.decode(errors="replace").strip()[-500:] or "Sinhala transcription failed")
         return json.loads(r.stdout.decode().strip().splitlines()[-1])
     if not VENV_PY.exists():
-        raise RuntimeError("mlx-whisper is not installed (missing .venv).")
+        raise RuntimeError("Whisper is not installed (missing .venv). Run the installer again.")
     r = subprocess.run([str(VENV_PY), str(HERE / "whisper_worker.py"), WHISPER_MODELS[model], lang],
                        input=pcm, capture_output=True, timeout=3 * 3600,
                        env={**os.environ, "HF_HOME": str(HERE / "models")})  # keep the 3 GB model on this drive
@@ -275,7 +287,7 @@ def run_analyze(data: bytes, kind: str, q: dict) -> dict:
     raise ValueError("unknown analysis")
 
 
-TTS_PY = Path(os.environ.get("LEXCUT_TTS_VENV") or Path.home() / ".opencut" / "venv-tts") / "bin" / "python"
+TTS_PY = venv_python(os.environ.get("LEXCUT_TTS_VENV") or Path.home() / ".opencut" / "venv-tts")
 
 
 def enrolled_voices():
@@ -333,6 +345,10 @@ def run_diarize(pcm: bytes, segs: list, speakers: int):
 
 
 class Handler(SimpleHTTPRequestHandler):
+    # Fixed types: on Windows the registry can map .js to text/plain, and the browser then refuses the module scripts.
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
+                      ".html": "text/html", ".json": "application/json", ".svg": "image/svg+xml", ".wasm": "application/wasm"}
+
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=str(HERE), **kw)
 

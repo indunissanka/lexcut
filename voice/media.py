@@ -4,8 +4,10 @@ import shutil
 import subprocess
 from pathlib import Path
 
-FFMPEG = shutil.which("ffmpeg", path="/opt/homebrew/bin:/usr/local/bin:/usr/bin") or "ffmpeg"
-FFPROBE = shutil.which("ffprobe", path="/opt/homebrew/bin:/usr/local/bin:/usr/bin") or "ffprobe"
+from platform_util import which
+
+FFMPEG = which("ffmpeg") or "ffmpeg"
+FFPROBE = which("ffprobe") or "ffprobe"
 
 
 def _run(args, timeout=600):
