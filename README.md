@@ -1,6 +1,6 @@
 # LexCut
 
-A video editor that runs in your browser on a Mac, with AI voice, subtitles and effects built in. Everything runs on your own computer. A small Python server serves the editor on `localhost`, and your project autosaves in the browser.
+A video editor that runs in your browser on a Mac or a Windows PC, with AI voice, subtitles and effects built in. Everything runs on your own computer. A small Python server serves the editor on `localhost`, and your project autosaves in the browser.
 
 > LexCut is a separate project. It is **not** related to [OpenCut](https://github.com/OpenCut-app/OpenCut) and shares no code with it.
 
@@ -22,10 +22,10 @@ A video editor that runs in your browser on a Mac, with AI voice, subtitles and 
 - Mixer (volume, pan, mute, solo, meters), background music with automatic ducking, sync by sound
 
 **AI, local and free**
-- Automatic subtitles with local Whisper (large-v3), plus subtitle translation
+- Automatic subtitles with local Whisper (large-v3), plus subtitle translation. Macs use mlx-whisper; Windows uses faster-whisper (on the CPU, or on an NVIDIA GPU)
 - **Sinhala transcription** with a Whisper model trained on Sinhala ([SinhaSpeech/whisper-small-sinhala](https://huggingface.co/SinhaSpeech/whisper-small-sinhala-run12-best)). Large-v3 loops on Sinhala; this model does not. Claude can then fix misheard words.
 - Speaker labels (Person 1, Person 2…) with voice matching
-- **AI Voice Studio:** clone a voice from samples, text-to-speech in 19 languages, styles, pronunciation fixes, insert narration into the timeline. Ready-made macOS system voices are also included.
+- **AI Voice Studio:** clone a voice from samples, text-to-speech in 19 languages, styles, pronunciation fixes, insert narration into the timeline. Ready-made system voices (macOS or Windows) are also included.
 - **Sinhala voice in your own voice:** a [Piper Sinhala voice](https://huggingface.co/chan4lk/piper-tts-sinhala) speaks the text, then OpenVoice v2 converts it to sound like your cloned voice. 18 languages use Coqui XTTS-v2.
 - Smart tools: scene detection, silence removal, highlight detection
 
@@ -38,13 +38,24 @@ A video editor that runs in your browser on a Mac, with AI voice, subtitles and 
 
 ## Requirements
 
+**Mac**
 - macOS on Apple Silicon (M1 or later)
 - [Homebrew](https://brew.sh)
 - Chrome
+
+**Windows**
+- Windows 10 or 11 (64-bit)
+- [winget](https://learn.microsoft.com/windows/package-manager/winget/) (built into Windows 11), or install Python 3.11 and ffmpeg yourself
+- Chrome or Edge
+- Optional: an NVIDIA GPU with CUDA 12 and cuDNN 9 makes transcription and voices much faster. Without one, everything runs on the CPU.
+
+**Both**
 - About 6 GB of disk space for everything (about 3 GB without the voice features)
 - Optional: [Claude Code](https://claude.com/claude-code) for the Claude features, and a [Replicate](https://replicate.com) key for the cloud tools
 
 ## Install
+
+### Mac
 
 ```bash
 git clone https://github.com/indunissanka/lexcut.git
@@ -61,15 +72,46 @@ The script installs Python 3.11 and ffmpeg (with Homebrew), the transcription en
 | `--download-models` | Download the Whisper models (~4 GB) and OpenVoice now instead of on first use |
 | `--mcp` | Register the Claude connector |
 
+### Windows
+
+Download or clone the repository, then double-click `install.cmd`. You can also run it from PowerShell:
+
+```powershell
+git clone https://github.com/indunissanka/lexcut.git
+cd lexcut
+.\install.cmd
+```
+
+The installer uses winget to install Python 3.11 and ffmpeg. It then sets up the transcription environment (`.venv`, faster-whisper), the voice environment (`%USERPROFILE%\.opencut\venv-tts`), and the `LexCut` and `Stop LexCut` shortcuts on your desktop and in the Start menu. You can run it again at any time; it only adds what is missing.
+
+| Option | What it does |
+|---|---|
+| `-NoVoice` | Skip the ~2 GB voice environment (also turns off the Sinhala voice and Sinhala transcription) |
+| `-NoLauncher` | Do not create the shortcuts |
+| `-DownloadModels` | Download the Whisper models and OpenVoice now instead of on first use |
+| `-Mcp` | Register the Claude connector |
+
+For example: `.\install.cmd -NoVoice`
+
 ## Run
 
-Open `~/Applications/LexCut.app`, or run:
+**Mac:** open `~/Applications/LexCut.app`, or run:
 
 ```bash
 python3 server.py 8765
 ```
 
-Then open http://localhost:8765/ in Chrome. To stop it, open `Stop LexCut.app`.
+To stop it, open `Stop LexCut.app`.
+
+**Windows:** double-click the `LexCut` shortcut on your desktop, or run:
+
+```powershell
+.venv\Scripts\python.exe server.py 8765
+```
+
+To stop it, double-click `Stop LexCut`.
+
+Then open http://localhost:8765/ in Chrome (or Edge on Windows).
 
 ## Claude connector (MCP)
 
@@ -77,12 +119,14 @@ Then open http://localhost:8765/ in Chrome. To stop it, open `Stop LexCut.app`.
 claude mcp add opencut -- python3 /path/to/lexcut/opencut_mcp.py
 ```
 
+On Windows, use the full path, for example `claude mcp add opencut -- python C:\Users\you\lexcut\opencut_mcp.py`.
+
 Keep the editor open in a browser tab. Claude then gets the tools `opencut_get_state`, `opencut_edit`, `opencut_screenshot`, `opencut_undo`, `opencut_redo` and `opencut_help`. (The connector keeps its original `opencut` name so existing setups keep working.)
 
 ## Where your data lives
 
 - Your project: in the browser (IndexedDB). Use File → Save project for a file copy.
-- Voices, generated audio and settings: `~/.opencut/`. API keys are stored there with mode 600 and are never sent to the browser.
+- Voices, generated audio and settings: `~/.opencut/` (on Windows: `%USERPROFILE%\.opencut\`). API keys are stored there with mode 600 and are never sent to the browser.
 - Downloaded models: `models/` in this folder.
 
 ## Licences

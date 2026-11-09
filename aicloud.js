@@ -22,7 +22,7 @@ dlg.innerHTML = `<form method="dialog"><h3>AI Cloud tools <small class="muted">p
 <div class="row"><button type="button" id="cx-gen">Generate video</button></div>
 <h4>Selected video clip</h4><p class="muted" id="cx-target"></p>
 <div class="row"><button type="button" data-cx="background">Remove background</button><button type="button" data-cx="face">Enhance faces</button><button type="button" data-cx="eyes">Fix eye contact</button></div>
-<p class="muted">The result replaces the clip's picture (its sound stays). Undo with Cmd+Z. Background removal gives a green background that the clip's Green screen key removes automatically.</p>
+<p class="muted">The result replaces the clip's picture (its sound stays). Undo with Ctrl/Cmd+Z. Background removal gives a green background that the clip's Green screen key removes automatically.</p>
 <p id="cx-status" class="muted"></p><div class="row"><button type="button" id="cx-cancel" hidden>Cancel job</button></div>
 <details><summary>Settings: API key and models</summary>
 <label>Replicate API key (stored on this computer in ~/.opencut/ai_config.json, never shown again)</label>

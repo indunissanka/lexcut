@@ -171,7 +171,7 @@ const runPolishCaptions = async () => {
     pushHistory();
     for (const c of clips) if (r.changed.has(c.id)) c.text = r.changed.get(c.id);
     afterEdit();
-    status.textContent = `Done: improved ${r.changed.size} of ${r.total} captions. Undo with Cmd+Z.`;
+    status.textContent = `Done: improved ${r.changed.size} of ${r.total} captions. Undo with Ctrl/Cmd+Z.`;
   } catch (e) { status.textContent = 'Error: ' + e.message; }
   run.disabled = false;
 };

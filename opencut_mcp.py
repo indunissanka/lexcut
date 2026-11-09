@@ -5,6 +5,7 @@ Lets Claude Code / Claude Desktop, signed in with your Claude Pro account (no AP
 project that is open in LexCut. LexCut must be running (server.py) with the editor open in a browser tab.
 
 Register:  claude mcp add opencut -- python3 /path/to/lexcut/opencut_mcp.py
+           (Windows: claude mcp add opencut -- python C:\\path\\to\\lexcut\\opencut_mcp.py)
 """
 import json
 import os
@@ -44,7 +45,7 @@ def call(op, args):
         out = json.loads(e.read() or b"{}")
         raise RuntimeError(out.get("error") or f"HTTP {e.code}")
     except OSError:
-        raise RuntimeError(f"LexCut is not running on port {PORT}. Start it with ~/Applications/LexCut.app.")
+        raise RuntimeError(f"LexCut is not running on port {PORT}. Start it with the LexCut launcher (or: python server.py).")
     if not out.get("ok"):
         raise RuntimeError(out.get("error") or "failed")
     return out["result"]
@@ -65,6 +66,9 @@ def reply(i, result=None, error=None):
 
 
 def main():
+    # MCP messages are UTF-8 JSON lines. Windows would otherwise use its code page and "\r\n" line ends.
+    sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
     for line in sys.stdin:
         if not line.strip():
             continue

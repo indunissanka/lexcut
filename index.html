@@ -277,7 +277,7 @@
 <dialog id="np-dialog">
   <form method="dialog">
     <h3>New project</h3>
-    <p>Start an empty project? The clips, layers and edits in the current project will be cleared (Cmd+Z cannot bring them back). Use Save project first if you want to keep them.</p>
+    <p>Start an empty project? The clips, layers and edits in the current project will be cleared (Ctrl/Cmd+Z cannot bring them back). Use Save project first if you want to keep them.</p>
     <label class="check"><input type="checkbox" id="np-keep"> Keep the imported media in the Media list</label>
     <div class="row">
       <button type="button" id="np-cancel">Cancel</button>
@@ -358,8 +358,8 @@
     </select>
     <label>Model (bigger is slower and more accurate)</label>
     <select id="tr-model">
-      <option value="local:large-v3">Large-v3 on this Mac (most accurate, about 3 GB, slow)</option>
-      <option value="local:sinhala">Sinhala Whisper on this Mac (trained on Sinhala, about 1 GB; best for Sinhala)</option>
+      <option value="local:large-v3">Large-v3 on this computer (most accurate, about 3 GB, slow)</option>
+      <option value="local:sinhala">Sinhala Whisper on this computer (trained on Sinhala, about 1 GB; best for Sinhala)</option>
       <option value="Xenova/whisper-tiny">Tiny (about 40 MB)</option>
       <option value="Xenova/whisper-base" selected>Base (about 80 MB)</option>
       <option value="Xenova/whisper-small">Small (about 250 MB)</option>

@@ -19,9 +19,9 @@ from transformers import pipeline
 
 repo = sys.argv[1]
 audio = np.frombuffer(sys.stdin.buffer.read(), dtype=np.int16).astype(np.float32) / 32768.0
-dev = os.environ.get("LEXCUT_ASR_DEVICE") or ("mps" if torch.backends.mps.is_available() else "cpu")
+dev = os.environ.get("LEXCUT_ASR_DEVICE") or ("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 asr = pipeline("automatic-speech-recognition", model=repo, device=dev,
-               torch_dtype=torch.float16 if dev == "mps" else torch.float32)
+               torch_dtype=torch.float16 if dev in ("mps", "cuda") else torch.float32)
 gen = {"language": "sinhala", "task": "transcribe", "no_repeat_ngram_size": 4, "max_new_tokens": 200}
 SR = 16000
 

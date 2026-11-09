@@ -11,7 +11,9 @@ from TTS.api import TTS
 
 dev = os.environ.get("OPENCUT_TTS_DEVICE", "auto")
 if dev == "auto":
-    dev = "cpu"   # measured: CPU is as fast or faster than MPS for sentence-sized requests and avoids MPS op gaps
+    # measured: on a Mac, CPU is as fast or faster than MPS for sentence-sized requests and avoids MPS op gaps.
+    # An NVIDIA GPU (Windows/Linux) is much faster than the CPU, so use it when there is one.
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
 tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
 tts.to(dev)
 model = tts.synthesizer.tts_model

@@ -21,7 +21,7 @@ window.audioSection = function (c) {
     + `<div class="row" style="justify-content:flex-start;flex-wrap:wrap">${Object.keys(AFX_PRESETS).map(k => `<button type="button" data-afx="${k}">${{ flat: 'Flat (reset)', voice: 'Clear voice', warm: 'Warm', bright: 'Bright', phone: 'Telephone' }[k]}</button>`).join('')}</div>`
     + sl('hp', 'Cut low rumble below (Hz, 0 = off)', 0, 300, 5, 0) + sl('eqLo', 'Bass (dB)', -12, 12, 0.5, 0) + sl('eqMid', 'Middle (dB)', -12, 12, 0.5, 0) + sl('eqHi', 'Treble (dB)', -12, 12, 0.5, 0)
     + sl('comp', 'Compressor: evens out loud and quiet (0 = off)', 0, 100, 1, 0)
-    + `<h3>Noise removal and voice</h3><p class="muted">Cleans this clip's sound on this computer. The cleaned sound replaces it; Undo (Cmd+Z) brings the original back.</p>`
+    + `<h3>Noise removal and voice</h3><p class="muted">Cleans this clip's sound on this computer. The cleaned sound replaces it; Undo (Ctrl/Cmd+Z) brings the original back.</p>`
     + `<div class="row" style="justify-content:flex-start;flex-wrap:wrap"><button type="button" id="afx-denoise">Remove background noise</button><button type="button" id="afx-enhance">Enhance voice</button></div><p class="muted" id="afx-status"></p>`
     + `<h3>Sync this sound to another clip</h3><p class="muted">For a separate recording (for example an external microphone): matches it to the sound of the clip you choose, so both play at the same moment.</p>`
     + `<select id="sync-ref"><option value="">Choose the clip to match…</option>${refs}</select><div class="row" style="justify-content:flex-start"><button type="button" id="sync-run">Sync by sound</button></div><p class="muted" id="sync-status"></p>`;
@@ -261,7 +261,7 @@ $('#bm-go').onclick = async () => {
     }
     state.clips.push(...pieces);
     afterEdit();
-    st.textContent = `Added the music on a new Audio layer${iv.length ? `, lowered under ${iv.length} speaking section${iv.length > 1 ? 's' : ''}` : ''}. Undo with Cmd+Z.`;
+    st.textContent = `Added the music on a new Audio layer${iv.length ? `, lowered under ${iv.length} speaking section${iv.length > 1 ? 's' : ''}` : ''}. Undo with Ctrl/Cmd+Z.`;
   } catch (e) { st.textContent = 'Could not add the music: ' + e.message; }
   btn.disabled = false;
 };

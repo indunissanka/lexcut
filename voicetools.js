@@ -28,8 +28,8 @@ const msg = (id, t) => { const e = $p('#' + id); if (e) e.textContent = t; };
 
 function render(p, voices) {
   pane = p; vs = voices;
-  p.innerHTML = `<p class="muted">Voice tools: ready-made voices run on this Mac. Speech to speech, voice isolation and lip sync are paid cloud features (Replicate): set them up in AI &gt; AI Cloud tools &gt; Settings.</p>
-  <div class="vs-box"><h4>Ready-made voices (male and female, free, on this Mac)</h4><div id="vt-ready">Loading voices…</div></div>
+  p.innerHTML = `<p class="muted">Voice tools: ready-made voices run on this computer. Speech to speech, voice isolation and lip sync are paid cloud features (Replicate): set them up in AI &gt; AI Cloud tools &gt; Settings.</p>
+  <div class="vs-box"><h4>Ready-made voices (male and female, free, on this computer)</h4><div id="vt-ready">Loading voices…</div></div>
   <div class="vs-box"><h4>Speech to speech</h4>
     <p class="muted">Re-speaks the selected clip's talking in another voice, keeping words, timing and delivery. You need a speech-to-speech model in the AI Cloud settings (no default model is set).</p>
     <label>Target voice</label><select id="vt-s2s-voice"><option value="">Choose…</option>${vs.filter(v => v.samples && v.samples.length || v.status === 'ready').map(v => `<option value="${v.id}">${esc(v.name)}</option>`).join('')}<option value="__file">A recording from my computer…</option></select>
@@ -56,6 +56,7 @@ function fillAudioChoices() {
 async function renderReady() {
   const box = $p('#vt-ready');
   try { if (!sys) sys = await jget('/api/vt/voices'); } catch (e) { box.textContent = 'Could not list voices: ' + e.message; return; }
+  if (!sys.voices.length) { box.textContent = 'No ready-made voices were found on this computer (they come with macOS and Windows).'; return; }
   const langs = [...new Set(sys.voices.map(v => v.lang))].sort((a, b) => (LANG[a] || a).localeCompare(LANG[b] || b));
   const list = () => sys.voices.filter(v => v.lang === S.lang && (!S.gender || v.gender === S.gender));
   const draw = () => {
@@ -123,7 +124,7 @@ async function s2s() {
     const nc = newMediaClip(na, track, start); nc.dur = Math.min(na.dur, c.dur);
     if (!fits(nc, start, nc.dur, track)) { addLayer('audio'); nc.track = TRACKS.length - 1; }
     state.clips.push(nc); c.vol = 0; state.sel = nc.id; afterEdit();
-    msg(id, 'Done. The converted voice is on the "AI Voice" layer and the original clip was muted. Undo with Cmd+Z.');
+    msg(id, 'Done. The converted voice is on the "AI Voice" layer and the original clip was muted. Undo with Ctrl/Cmd+Z.');
   } catch (e) { msg(id, 'Could not convert: ' + e.message); }
   b.disabled = false;
 }
