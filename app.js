@@ -322,6 +322,12 @@ function renderBin() {
   const list = $('#bin-list');
   list.innerHTML = '';
   if (!state.assets.size) { list.innerHTML = '<p class="muted">Drop files here or click Import media. Drag items onto the timeline, or double-click to add.</p>'; return; }
+  const all = mk('button', 'add-all');
+  all.id = 'btn-add-all';
+  all.textContent = 'Add all to timeline';
+  all.title = 'Put every media file that is not on the timeline yet at the end, in this order';
+  all.onclick = addAllAssets;
+  list.append(all);
   for (const a of state.assets.values()) {
     const row = mk('div', 'asset');
     row.draggable = true;
@@ -476,6 +482,18 @@ function addAssetAtEnd(a) {
   const c = addMediaClips(a, track, laneEnd(track));
   state.sel = c.id;
   afterEdit();
+}
+// Add every media file that is not on the timeline yet, one after another, as one undo step.
+function addAllAssets() {
+  const used = new Set(state.clips.map(c => c.assetId));
+  const todo = [...state.assets.values()].filter(a => !used.has(a.id));
+  if (!todo.length) { toast('All media is already on the timeline.'); return; }
+  pushHistory();
+  let last;
+  for (const a of todo) { const track = defaultTrack(a.kind); last = addMediaClips(a, track, laneEnd(track)); }
+  state.sel = last.id;
+  afterEdit();
+  toast(`Added ${todo.length} file${todo.length > 1 ? 's' : ''} to the timeline.`);
 }
 function newTextClip(text, start, dur) {
   return { id: uid(), track: defaultTrack('text'), start, in: 0, dur, text, size: 56, color: '#ffffff', bg: false, y: 85, opacity: 1 };

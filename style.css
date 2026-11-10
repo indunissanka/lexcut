@@ -17,6 +17,7 @@ aside h3 { margin: 4px 0 8px; font-size: 12px; text-transform: uppercase; color:
 #bin.drop { outline: 2px dashed #3b6df0; outline-offset: -4px; }
 
 .asset { display: flex; gap: 8px; align-items: center; padding: 6px; border-radius: 6px; cursor: grab; }
+.add-all { width: 100%; margin: 0 0 8px; padding: 7px 10px; }
 .asset:hover { background: #22242a; }
 .asset .thumb { width: 56px; height: 36px; background: #000; object-fit: cover; border-radius: 3px; flex: none; display: grid; place-items: center; font-size: 18px; }
 .asset .meta { min-width: 0; flex: 1; }
