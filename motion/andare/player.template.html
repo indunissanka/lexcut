@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Little Hoppers for Little Andare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js" } }</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #050403; color: #f3e7d0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  #wrap { position: absolute; inset: 0 0 56px 0; display: grid; place-items: center; }
+  canvas#stage { width: min(100vw, calc((100vh - 56px) * 16 / 9)); aspect-ratio: 16 / 9; height: auto; display: block; background: #000; }
+  #bar { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: #15100c; border-top: 1px solid #2a2018; }
+  button, label.btn { background: #2a2018; color: #f3e7d0; border: 1px solid #3a2d22; border-radius: 7px; padding: 6px 11px; font: inherit; cursor: pointer; white-space: nowrap; }
+  button.on { background: #e2604a; border-color: #e2604a; color: #fff; }
+  #scrub { flex: 1; accent-color: #e2604a; min-width: 60px; }
+  #time { font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; color: #b9a88e; }
+  #vo { color: #b9a88e; max-width: 22vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #drop { position: absolute; inset: 0; display: none; place-items: center; background: rgba(226, 96, 74, 0.25); border: 3px dashed #e2604a; font-size: 22px; z-index: 5; }
+  #msg { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); color: #b9a88e; }
+  input[type=file] { display: none; }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="stage" width="1920" height="1080"></canvas><div id="msg">Building the book…</div></div>
+<div id="bar">
+  <button id="play" disabled>▶ Play</button>
+  <input id="scrub" type="range" min="0" max="1" step="0.001" value="0">
+  <span id="time">0:00.0</span>
+  <button id="snd" class="on" title="Sound effects">Sound on</button>
+  <button id="loop" class="on">Loop</button>
+  <label class="btn" for="file">Load voiceover</label><input id="file" type="file" accept="audio/*">
+  <span id="vo"></span>
+</div>
+<div id="drop">Drop the voiceover audio file</div>
+<script type="module">
+import * as THREE from 'three';
+window.THREE = THREE;
+/*__STAGE__*/
+/*__SOUND__*/
+/*__STYLE__*/
+const style = window.STYLES[window.STYLES.length - 1];
+const q = new URLSearchParams(location.search);
+const RENDER = q.has('render');                                     // headless video render: no player clock
+const LIVE = 3, FULL = +(q.get('samples')) || style.render.samples;    // live preview samples / samples for rendered frames
+const canvas = document.getElementById('stage');
+if (q.get('map')) style.render.lampMap = +q.get('map');            // a smaller lamp shadow map for slow software renders
+const S = await K.run(canvas, style, { samples: RENDER ? FULL : LIVE, width: +(q.get('w')) || 1920, height: +(q.get('h')) || 1080 });
+const D = style.duration;
+window.seek = (t) => S.seek(t);
+window.DURATION = D;
+// the effects score as 16-bit stereo, base64, for the video render
+window.renderSound = async (sr = 48000) => {
+  const r = await SOUND.renderOffline((k) => style.sound(k), D, sr, { voiceover: true });
+  const pcm = new Int16Array(r.inter.length); for (let i = 0; i < pcm.length; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(r.inter[i] * 32767)));
+  const u8 = new Uint8Array(pcm.buffer); let bin = ''; for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return { b64: btoa(bin), peak: r.peak, sr };
+};
+document.getElementById('msg').remove();
+if (RENDER) { window.READY = true; }
+else {
+  const $ = (id) => document.getElementById(id);
+  const playBtn = $('play'), scrub = $('scrub'), time = $('time'), sndBtn = $('snd'), loopBtn = $('loop');
+  let playing = false, t = 0, last = 0, audio = null, stopSound = null, soundOn = true, loop = true, dirty = true, idle = 0;
+  const fmt = (x) => { const m = Math.floor(x / 60), s = x - m * 60; return `${m}:${s.toFixed(1).padStart(4, '0')}`; };
+  const stopFx = () => { if (stopSound) { stopSound(); stopSound = null; } };
+  const startFx = () => { stopFx(); if (soundOn && playing) stopSound = SOUND.live((k) => style.sound(k), t, { voiceover: true }); };
+  function play() {
+    if (t >= D - 0.01) t = 0;
+    playing = true; playBtn.textContent = '❚❚ Pause';
+    if (audio) { audio.currentTime = Math.min(t, audio.duration || t); audio.play().catch(() => {}); }
+    last = performance.now(); startFx();
+  }
+  function pause() { playing = false; playBtn.textContent = '▶ Play'; if (audio) audio.pause(); stopFx(); dirty = true; idle = performance.now(); }
+  function seekTo(x) { t = Math.max(0, Math.min(D, x)); if (audio) audio.currentTime = Math.min(t, audio.duration || t); stopFx(); if (playing) startFx(); dirty = true; idle = performance.now(); }
+  playBtn.onclick = () => (playing ? pause() : play()); playBtn.disabled = false;
+  scrub.oninput = () => seekTo(+scrub.value * D);
+  sndBtn.onclick = () => { soundOn = !soundOn; sndBtn.classList.toggle('on', soundOn); sndBtn.textContent = soundOn ? 'Sound on' : 'Sound off'; soundOn ? startFx() : stopFx(); };
+  loopBtn.onclick = () => { loop = !loop; loopBtn.classList.toggle('on', loop); };
+  document.addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); playing ? pause() : play(); } });
+  function loadAudio(file) {
+    if (!file || !/^audio\//.test(file.type) && !/\.(wav|mp3|m4a|ogg|aac|flac)$/i.test(file.name)) return;
+    if (audio) { audio.pause(); URL.revokeObjectURL(audio.src); }
+    audio = new Audio(URL.createObjectURL(file)); audio.preload = 'auto';
+    audio.onended = () => { if (loop) { seekTo(0); play(); } else pause(); };
+    $('vo').textContent = '🎙 ' + file.name;
+    const was = playing; pause(); audio.addEventListener('loadedmetadata', () => { seekTo(t); if (was) play(); }, { once: true });
+  }
+  $('file').onchange = (e) => loadAudio(e.target.files[0]);
+  const drop = $('drop'); let depth = 0;
+  addEventListener('dragenter', (e) => { e.preventDefault(); depth++; drop.style.display = 'grid'; });
+  addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; drop.style.display = 'none'; } });
+  addEventListener('dragover', (e) => e.preventDefault());
+  addEventListener('drop', (e) => { e.preventDefault(); depth = 0; drop.style.display = 'none'; loadAudio(e.dataTransfer.files[0]); });
+  let sharp = false;
+  function frame(now) {
+    if (playing) {
+      if (audio) t = audio.currentTime;                              // with a voiceover, the audio is the clock
+      else { t += (now - last) / 1000; last = now; }
+      if (t >= D && !audio) { if (loop) { t = 0; startFx(); } else { t = D; pause(); } }
+      S.seek(Math.min(t, D), LIVE); sharp = false;
+    } else if (dirty) { S.seek(t, LIVE); dirty = false; sharp = false; }
+    else if (!sharp && now - idle > 400) { S.seek(t, 16); sharp = true; }   // paused: settle into a cleaner still
+scrub.value = String(t / D); time.textContent = `${fmt(t)} / ${fmt(D)}`;
+    requestAnimationFrame(frame);
+  }
+  // without a voiceover file the piece loops on its own clock; with one, it loops when the audio ends
+  setInterval(() => { if (playing && audio && t >= D) { if (loop) { seekTo(0); } else pause(); } }, 200);
+  requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>

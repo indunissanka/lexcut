@@ -9,41 +9,41 @@
 
   // ---------------------------------------------------------------- BEATS: one entry per voiceover line
   // t = [start, end] in seconds, say = the words spoken, show = what happens on screen. `words` can hold real word
-  // timestamps later ([[word, time], ...]); until then W() estimates a word's time from its position in the line.
+  // timestamps ([[word, time], ...], taken from the voiceover with Whisper); without them W() estimates a word's time from its position in the line.
   const BEATS = [
-    { t: [0.00, 5.20], say: 'Little Hoppers for Little Andare', show: 'Cover spread: the hopper pan on the fire, title ribbon' },
-    { t: [5.20, 10.56], say: 'When Andare was a little boy, he loved eating hoppers for breakfast.', show: 'Page turns to Andare at home; a table of hoppers pops up on "hoppers"' },
-    { t: [10.56, 15.00], say: 'Every morning, his mother would give him twenty panam to buy some.', show: 'Mother rises on "mother"; four 5-panam coins on "twenty panam"' },
-    { t: [15.00, 21.56], say: 'Andare would take the money, head over to the hopper lady, and bring back four hoppers.', show: 'Page turns to the hopper stall; four hoppers pop up on "four"' },
-    { t: [21.56, 26.72], say: 'Sometimes the hoppers she made came out way too small, and those tiny ones wouldn\'t sell.', show: 'Close on the counter: a tray of tiny hoppers rises on "small"' },
-    { t: [26.72, 28.86], say: 'So what did she do with the leftovers?', show: 'Hold on the tiny hoppers' },
-    { t: [28.86, 33.66], say: 'She sold all the tiny hoppers to little Andare.', show: 'Andare pops up holding the tiny hoppers on "sold"' },
-    { t: [33.66, 39.54], say: 'For a few days, Andare watched her pull this trick, quietly nursing a grudge.', show: 'Page turns: days pass in the sky, Andare with arms crossed' },
-    { t: [39.54, 47.26], say: 'Finally, one day, little Andare said to himself, "She gives me tiny hoppers every single day.', show: 'Thought cloud with a tiny hopper rises on "tiny"' },
-    { t: [47.26, 50.18], say: 'I\'m going to teach her a good lesson."', show: 'An idea pops into the cloud on "lesson": tiny coins' },
-    { t: [50.18, 56.14], say: 'Sure enough, that day too, she handed him four tiny hoppers for his twenty panam.', show: 'Page turns to the stall; four tiny hoppers in her hand on "four"' },
-    { t: [56.78, 60.50], say: '"Auntie, why are these hoppers so tiny?"', show: 'Speech bubble "?" on "Auntie"' },
-    { t: [60.50, 61.26], say: 'Andare asked.', show: 'Hold' },
-    { t: [62.38, 67.42], say: 'The hopper lady replied, "Well, Andare, you\'re small, aren\'t you?', show: 'Page turns: the lady explains, Andare small beside her' },
-    { t: [67.42, 71.46], say: 'It\'s much easier for little kids to eat little hoppers.', show: 'A bitten tiny hopper pops up on "eat"' },
-    { t: [71.46, 76.38], say: 'Not only that, since they\'re lighter, they\'re easier for you to carry home, too."', show: 'A feather floats up on "lighter"' },
-    { t: [77.66, 80.34], say: '"Oh, is that so?"', show: 'Page turns: the basket on the counter, Andare grinning' },
-    { t: [80.34, 85.74], say: 'Andare said, tossing some coins into her basket before grabbing his hoppers and running off toward home.', show: 'Coins arc into the basket on "tossing"; dust puffs on "running"' },
-    { t: [87.10, 89.90], say: 'The hopper lady looked down into the basket.', show: 'Page turns: big basket, the lady peering in' },
-    { t: [89.90, 96.86], say: 'Instead of four five-panam coins, there were only four one-panam coins sitting there.', show: 'Ghost 5-panam coins on "five-panam"; four tiny 1-panam coins on "one-panam"' },
-    { t: [96.86, 98.18], say: 'She was furious.', show: 'Page turns: anger bursts on "furious"' },
-    { t: [98.18, 100.30], say: '"Stop right there, Andare!', show: 'Ribbon rises on "Stop"' },
-    { t: [100.30, 102.50], say: 'You\'re short on money here.', show: 'Hold' },
-    { t: [102.50, 105.22], say: 'Why did you drop these tiny coins and run off?"', show: 'Tiny coins in her fist on "tiny coins"' },
-    { t: [105.22, 106.30], say: 'she yelled angrily.', show: 'Hold' },
-    { t: [107.50, 110.90], say: '"When it\'s less money, it\'s easier for you to count, Auntie.', show: 'Page turns: the road home, Andare running' },
-    { t: [110.90, 114.26], say: 'And since the coins are tiny, they\'re easier for you to keep,"', show: 'Ribbon rises on "keep"' },
-    { t: [114.26, 117.78], say: 'Andare called back, running all the way home without looking back.', show: 'Pull tab: Andare reaches home with his hoppers' },
+    { t: [0.00, 5.20], say: 'Little Hoppers for Little Andare', show: 'Cover spread: the hopper pan on the fire, title ribbon', words: [["little", 1.24], ["hoppers", 1.64], ["for", 2.18], ["little", 2.48], ["andare", 2.82]] },
+    { t: [5.20, 10.56], say: 'When Andare was a little boy, he loved eating hoppers for breakfast.', show: 'Page turns to Andare at home; a table of hoppers pops up on "hoppers"', words: [["when", 4.58], ["andare", 5.18], ["was", 5.74], ["a", 6.0], ["little", 6.14], ["boy", 6.3], ["he", 6.96], ["loved", 7.14], ["eating", 7.72], ["hoppers", 8.14], ["for", 8.82], ["breakfast", 9.02]] },
+    { t: [10.56, 15.00], say: 'Every morning, his mother would give him twenty panam to buy some.', show: 'Mother rises on "mother"; four 5-panam coins on "twenty panam"', words: [["every", 10.18], ["morning", 10.54], ["his", 10.92], ["mother", 11.26], ["would", 11.6], ["give", 11.82], ["him", 12.02], ["twenty", 12.2], ["panam", 12.58], ["to", 13.28], ["buy", 13.42], ["some", 13.6]] },
+    { t: [15.00, 21.56], say: 'Andare would take the money, head over to the hopper lady, and bring back four hoppers.', show: 'Page turns to the hopper stall; four hoppers pop up on "four"', words: [["andare", 14.6], ["would", 14.98], ["take", 15.14], ["the", 15.32], ["money", 15.48], ["head", 16.2], ["over", 16.32], ["to", 16.56], ["the", 16.76], ["hopper", 16.86], ["lady", 17.12], ["and", 17.88], ["bring", 18.06], ["back", 18.28], ["four", 18.64], ["hoppers", 19.22]] },
+    { t: [21.56, 26.72], say: 'Sometimes the hoppers she made came out way too small, and those tiny ones wouldn\'t sell.', show: 'Close on the counter: a tray of tiny hoppers rises on "small"', words: [["sometimes", 20.7], ["the", 21.22], ["hoppers", 21.78], ["she", 22.06], ["made", 22.22], ["came", 22.44], ["out", 22.64], ["way", 22.8], ["too", 23.06], ["small", 23.26], ["and", 23.9], ["those", 24.3], ["tiny", 24.46], ["ones", 24.78], ["wouldn't", 25.04], ["sell", 25.42]] },
+    { t: [26.72, 28.86], say: 'So what did she do with the leftovers?', show: 'Hold on the tiny hoppers', words: [["so", 26.28], ["what", 26.5], ["did", 26.72], ["she", 26.9], ["do", 27.1], ["with", 27.28], ["the", 27.44], ["leftovers", 27.56]] },
+    { t: [28.86, 33.66], say: 'She sold all the tiny hoppers to little Andare.', show: 'Andare pops up holding the tiny hoppers on "sold"', words: [["she", 28.58], ["sold", 28.9], ["all", 29.34], ["the", 29.72], ["tiny", 29.92], ["hoppers", 30.38], ["to", 30.9], ["little", 31.4], ["andare", 31.76]] },
+    { t: [33.66, 39.54], say: 'For a few days, Andare watched her pull this trick, quietly nursing a grudge.', show: 'Page turns: days pass in the sky, Andare with arms crossed', words: [["for", 33.36], ["a", 33.68], ["few", 33.8], ["days", 33.92], ["andare", 34.14], ["watched", 34.94], ["her", 35.46], ["pull", 35.74], ["this", 36.02], ["trick", 36.32], ["quietly", 36.92], ["nursing", 37.62], ["a", 38.22], ["grudge", 38.52]] },
+    { t: [39.54, 47.26], say: 'Finally, one day, little Andare said to himself, "She gives me tiny hoppers every single day.', show: 'Thought cloud with a tiny hopper rises on "tiny"', words: [["finally", 39.62], ["one", 40.34], ["day", 40.48], ["little", 41.12], ["andare", 41.4], ["said", 41.9], ["to", 42.18], ["himself", 42.36], ["she", 43.38], ["gives", 43.66], ["me", 43.96], ["tiny", 44.18], ["hoppers", 44.64], ["every", 45.16], ["single", 45.72], ["day", 46.22]] },
+    { t: [47.26, 50.18], say: 'I\'m going to teach her a good lesson."', show: 'An idea pops into the cloud on "lesson": tiny coins', words: [["i'm", 47.1], ["going", 47.6], ["to", 47.78], ["teach", 47.94], ["her", 48.1], ["a", 48.3], ["good", 48.48], ["lesson", 48.8]] },
+    { t: [50.18, 56.14], say: 'Sure enough, that day too, she handed him four tiny hoppers for his twenty panam.', show: 'Page turns to the stall; four tiny hoppers in her hand on "four"', words: [["sure", 49.94], ["enough", 50.2], ["that", 50.88], ["day", 51.16], ["too", 51.36], ["she", 52.02], ["handed", 52.16], ["him", 52.42], ["four", 52.62], ["tiny", 53.14], ["hoppers", 53.7], ["for", 54.12], ["his", 54.3], ["twenty", 54.5], ["panam", 54.88]] },
+    { t: [56.78, 60.50], say: '"Auntie, why are these hoppers so tiny?"', show: 'Speech bubble "?" on "Auntie"', words: [["auntie", 56.44], ["why", 57.96], ["are", 58.3], ["these", 58.48], ["hoppers", 58.74], ["so", 59.14], ["tiny", 59.36]] },
+    { t: [60.50, 61.26], say: 'Andare asked.', show: 'Hold', words: [["andare", 60.38], ["asked", 60.72]] },
+    { t: [62.38, 67.42], say: 'The hopper lady replied, "Well, Andare, you\'re small, aren\'t you?', show: 'Page turns: the lady explains, Andare small beside her', words: [["the", 62.3], ["hopper", 62.46], ["lady", 62.66], ["replied", 62.84], ["well", 63.9], ["andare", 64.68], ["you're", 65.58], ["small", 65.84], ["aren't", 66.48], ["you", 66.7]] },
+    { t: [67.42, 71.46], say: 'It\'s much easier for little kids to eat little hoppers.', show: 'A bitten tiny hopper pops up on "eat"', words: [["it's", 67.36], ["much", 67.62], ["easier", 67.84], ["for", 68.56], ["little", 68.82], ["kids", 69.16], ["to", 69.52], ["eat", 69.74], ["little", 69.94], ["hoppers", 70.4]] },
+    { t: [71.46, 76.38], say: 'Not only that, since they\'re lighter, they\'re easier for you to carry home, too."', show: 'A feather floats up on "lighter"', words: [["not", 71.32], ["only", 71.6], ["that", 71.8], ["since", 72.62], ["they're", 72.7], ["lighter", 72.96], ["they're", 73.84], ["easier", 74.08], ["for", 74.46], ["you", 74.72], ["to", 74.86], ["carry", 74.96], ["home", 75.24], ["too", 75.82]] },
+    { t: [77.66, 80.34], say: '"Oh, is that so?"', show: 'Page turns: the basket on the counter, Andare grinning', words: [["oh", 77.36], ["is", 78.62], ["that", 78.94], ["so", 79.14]] },
+    { t: [80.34, 85.74], say: 'Andare said, tossing some coins into her basket before grabbing his hoppers and running off toward home.', show: 'Coins arc into the basket on "tossing"; dust puffs on "running"', words: [["andare", 80.14], ["said", 80.58], ["tossing", 81.42], ["some", 81.72], ["coins", 81.88], ["into", 82.18], ["her", 82.44], ["basket", 82.6], ["before", 82.9], ["grabbing", 83.12], ["his", 83.56], ["hoppers", 83.76], ["and", 84.12], ["running", 84.46], ["off", 84.86], ["toward", 85.12], ["home", 85.32]] },
+    { t: [87.10, 89.90], say: 'The hopper lady looked down into the basket.', show: 'Page turns: big basket, the lady peering in', words: [["the", 87.0], ["hopper", 87.26], ["lady", 87.52], ["looked", 87.76], ["down", 88.02], ["into", 88.44], ["the", 88.7], ["basket", 88.82]] },
+    { t: [89.90, 96.86], say: 'Instead of four five-panam coins, there were only four one-panam coins sitting there.', show: 'Ghost 5-panam coins on "five-panam"; four tiny 1-panam coins on "one-panam"', words: [["instead", 89.78], ["of", 90.2], ["four", 90.46], ["five", 91.12], ["panam", 91.52], ["coins", 91.92], ["there", 92.9], ["were", 93.04], ["only", 93.14], ["four", 93.36], ["one", 94.02], ["panam", 94.58], ["coins", 95.18], ["sitting", 95.62], ["there", 95.92]] },
+    { t: [96.86, 98.18], say: 'She was furious.', show: 'Page turns: anger bursts on "furious"', words: [["she", 96.78], ["was", 97.08], ["furious", 97.26]] },
+    { t: [98.18, 100.30], say: '"Stop right there, Andare!', show: 'Ribbon rises on "Stop"', words: [["stop", 98.22], ["right", 98.6], ["there", 98.98], ["andare", 99.52]] },
+    { t: [100.30, 102.50], say: 'You\'re short on money here.', show: 'Hold', words: [["you're", 100.2], ["short", 100.56], ["on", 101.0], ["money", 101.24], ["here", 101.6]] },
+    { t: [102.50, 105.22], say: 'Why did you drop these tiny coins and run off?"', show: 'Tiny coins in her fist on "tiny coins"', words: [["why", 102.36], ["did", 102.68], ["you", 102.84], ["drop", 102.94], ["these", 103.22], ["tiny", 103.44], ["coins", 103.86], ["and", 104.18], ["run", 104.4], ["off", 104.54]] },
+    { t: [105.22, 106.30], say: 'she yelled angrily.', show: 'Hold', words: [["she", 105.24], ["yelled", 105.4], ["angrily", 105.64]] },
+    { t: [107.50, 110.90], say: '"When it\'s less money, it\'s easier for you to count, Auntie.', show: 'Page turns: the road home, Andare running', words: [["when", 107.26], ["it's", 107.68], ["less", 107.88], ["money", 108.06], ["it's", 108.7], ["easier", 108.88], ["for", 109.2], ["you", 109.42], ["to", 109.54], ["count", 109.64], ["auntie", 110.12]] },
+    { t: [110.90, 114.26], say: 'And since the coins are tiny, they\'re easier for you to keep,"', show: 'Ribbon rises on "keep"', words: [["and", 110.92], ["since", 111.04], ["the", 111.16], ["coins", 111.36], ["are", 111.58], ["tiny", 111.7], ["they're", 112.5], ["easier", 112.6], ["for", 113.0], ["you", 113.28], ["to", 113.42], ["keep", 113.52]] },
+    { t: [114.26, 117.78], say: 'Andare called back, running all the way home without looking back.', show: 'Pull tab: Andare reaches home with his hoppers', words: [["andare", 114.24], ["called", 114.58], ["back", 114.84], ["running", 115.46], ["all", 115.74], ["the", 116.1], ["way", 116.28], ["home", 116.46], ["without", 116.72], ["looking", 117.0], ["back", 117.36]] },
   ];
   // time a word is spoken in line n (1-based). nth picks a later occurrence.
   const W = (n, word, nth = 0) => {
     const b = BEATS[n - 1];
-    if (b.words) { const hit = b.words.filter(([w]) => w.toLowerCase().startsWith(word.toLowerCase()))[nth]; if (hit) return hit[1]; }
+    if (b.words) { const key = word.toLowerCase().split('-')[0].replace(/[^a-z0-9']/g, ''), hit = b.words.filter(([w]) => w.startsWith(key))[nth]; if (hit) return hit[1]; }
     const s = b.say.toLowerCase(); let i = -1; for (let k = 0; k <= nth; k++) i = s.indexOf(word.toLowerCase(), i + 1);
     if (i < 0) throw new Error(`word "${word}" not in line ${n}`);
     return b.t[0] + (i / s.length) * (b.t[1] - b.t[0]);
@@ -231,7 +231,7 @@
       ],
     },
     { // ------------------------------------------------------------ 1. Andare at home, breakfast; his mother and twenty panam
-      turn: W(1, 'Andare') - 0.15, words: ['Andare', 'loves hoppers'], at: W(2, 'hoppers'),
+      turn: W(2, 'When') - 1.2, words: ['Andare', 'loves hoppers'], at: W(2, 'hoppers'),
       floor(a) {
         floorBase(a, '#e9c47a');
         a.clip((c) => c.roundRect(-5.42, -3.02, 10.84, 6.04, 0.45), () => { for (let i = -24; i <= 24; i++) a.box(i % 2 ? '#e2b765' : '#efd08f', i * 0.24, -3.1, 0.2, 6.2); for (let j = -14; j <= 14; j += 2) a.box('rgba(176,100,27,0.25)', -5.5, j * 0.22, 11, 0.06); });
@@ -707,7 +707,7 @@
       const pencil = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 5.2, 6), new THREE.MeshStandardMaterial({ color: '#d99a1e', roughness: 0.45 })); pencil.rotation.set(Math.PI / 2, 0, 1.25); pencil.position.set(6.6, TABLE_Y + 0.1, -5.4); pencil.castShadow = pencil.receiveShadow = true; scene.add(pencil);
 
       K.env(S, { top: '#2a2119', horizon: '#3d3024', bottom: '#6b5740', intensity: 1.0, panels: [{ pos: [9, 11, 7], size: [7, 7], color: '#ffd9a6', power: 3 }, { pos: [-12, 6, -9], size: [6, 8], color: '#8fa8ff', power: 1.1 }] });
-      K.spot(S, { pos: [4.5, 9.5, 11], target: [-0.2, 0.8, 0], color: '#ffe9d0', power: 1250, angle: 0.62, penumbra: 0.85, soft: 1.3, mapSize: 4096 });
+      K.spot(S, { pos: [4.5, 9.5, 11], target: [-0.2, 0.8, 0], color: '#ffe9d0', power: 1250, angle: 0.62, penumbra: 0.85, soft: 1.3, mapSize: S.R.lampMap || 4096 });
       K.spot(S, { pos: [-8, 5.5, -10], target: [0, 1, 0], color: '#c2d0ff', power: 150, angle: 0.5, penumbra: 1, shadow: false });
       K.skyLight(S, { color: '#ffe8d2', power: 1.1, size: 9, center: [0, 0, 0] });
 
