@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Storyboard: Little Hoppers for Little Andare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js" } }</script>
+<style>
+  :root { --bg: #17120d; --card: #241c15; --ink: #f3e7d0; --muted: #b9a88e; --accent: #e2604a; --gold: #f5bd35; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 28px 24px 8px; max-width: 1400px; margin: 0 auto; }
+  h1 { font-family: Fraunces, Georgia, serif; font-weight: 700; font-size: clamp(26px, 4vw, 40px); margin: 0 0 4px; }
+  header p { color: var(--muted); margin: 4px 0; max-width: 900px; }
+  .bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #status { color: var(--muted); font-size: 13px; }
+  main { max-width: 1400px; margin: 0 auto; padding: 16px 24px 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 22px; }
+  .panel { background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,0.35); }
+  .panel .img { aspect-ratio: 16 / 9; background: #0c0906; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+  .panel img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .meta { padding: 12px 16px 16px; }
+  .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .num { font-family: Fraunces, Georgia, serif; font-weight: 700; font-size: 20px; }
+  .time { font-variant-numeric: tabular-nums; color: var(--gold); font-size: 13px; }
+  .row { margin-top: 7px; }
+  .row b { color: var(--muted); font-weight: 600; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; display: block; }
+  .say { color: var(--muted); font-style: italic; font-size: 13px; }
+  section.notes { max-width: 1400px; margin: 0 auto; padding: 0 24px 60px; }
+  section.notes h2 { font-family: Fraunces, Georgia, serif; font-size: 24px; }
+  section.notes li { margin: 6px 0; color: var(--ink); }
+  canvas#stage { position: fixed; left: -9999px; top: 0; width: 192px; height: 108px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Little Hoppers for Little Andare</h1>
+  <p>Storyboard for a 1:59 "Paper Pop-Up" motion graphic. Each panel is a still of its beat's key frame, rendered with the STAGE kit from the scene itself, at 16 samples. Times come from the voiceover lines.</p>
+  <div class="bar"><button id="go">Re-render stills live</button><span id="status"></span></div>
+</header>
+<main id="grid"></main>
+<section class="notes">
+  <h2>Facts and numbers I assumed</h2>
+  <ul id="assume"></ul>
+</section>
+<canvas id="stage"></canvas>
+<script>window.PRE = /*__PRE__*/null;</script>
+<script type="module">
+import * as THREE from 'three';
+window.THREE = THREE;
+/*__STAGE__*/
+/*__STYLE__*/
+const style = window.STYLES[window.STYLES.length - 1];
+const fmt = (t) => { const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s.toFixed(2).padStart(5, '0')}`; };
+const grid = document.getElementById('grid'), status = document.getElementById('status');
+const imgs = style.BOARD.map((p, i) => {
+  const b0 = style.BEATS[p.beats[0] - 1], b1 = style.BEATS[p.beats[p.beats.length - 1] - 1];
+  const el = document.createElement('article'); el.className = 'panel';
+  el.innerHTML = `<div class="img">rendering…</div><div class="meta">
+    <div class="head"><span class="num">Beat ${p.beats.length > 1 ? p.beats[0] + '–' + p.beats[p.beats.length - 1] : p.beats[0]}</span><span class="time">${fmt(b0.t[0])} – ${fmt(b1.t[1])} · still at ${fmt(p.t)}</span></div>
+    <div class="row say">${p.beats.map((n) => '“' + style.BEATS[n - 1].say.replace(/^"|"$/g, '') + '”').join(' ')}</div>
+    <div class="row"><b>On screen</b>${p.text}</div>
+    <div class="row"><b>What changes</b>${p.note}</div>
+    <div class="row"><b>Camera</b>${p.cam}</div>
+    <div class="row"><b>Sound</b>${p.sound}</div></div>`;
+  grid.appendChild(el);
+  return el.querySelector('.img');
+});
+const ul = document.getElementById('assume'); style.ASSUMPTIONS.forEach((a) => { const li = document.createElement('li'); li.textContent = a; ul.appendChild(li); });
+const show = (i, src) => { imgs[i].innerHTML = ''; const im = new Image(); im.src = src; im.alt = 'Beat still'; imgs[i].appendChild(im); };
+let S = null;
+const NS = +(new URLSearchParams(location.search).get('samples')) || 16;   // ?samples=2 for a quick look
+async function renderAll() {
+  const btn = document.getElementById('go'); btn.disabled = true;
+  try {
+    status.textContent = 'Building the book…';
+    await new Promise((r) => setTimeout(r, 30));
+    if (!S) S = await K.run(document.getElementById('stage'), style, { samples: NS });
+    window.seek = (t) => S.seek(t);
+    const out = [];
+    for (let i = 0; i < style.BOARD.length; i++) {
+      status.textContent = `Rendering still ${i + 1} of ${style.BOARD.length}…`;
+      await new Promise((r) => setTimeout(r, 10));
+      S.seek(style.BOARD[i].t, NS);
+      const src = S.renderer.domElement.toDataURL('image/jpeg', 0.9);
+      out.push(src); show(i, src);
+    }
+    window.STILLS = out; status.textContent = 'Done.';
+  } catch (e) { status.textContent = 'Could not render here: ' + e.message; console.error(e); }
+  btn.disabled = false;
+}
+document.getElementById('go').onclick = renderAll;
+window.renderAll = renderAll;
+if (window.PRE) { window.PRE.forEach((src, i) => show(i, src)); status.textContent = 'Stills were rendered at 16 samples; the button renders them again in this browser.'; }
+else if (!/[?&]manual/.test(location.search)) renderAll();
+</script>
+</body>
+</html>
