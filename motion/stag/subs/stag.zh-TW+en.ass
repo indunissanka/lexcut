@@ -1,0 +1,37 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: zh,WenQuanYi Zen Hei,58,&H00FFFFFF,&H00FFFFFF,&H50201410,&H00000000,1,0,0,0,100,100,2,0,3,9,0,2,120,120,30,1
+Style: en,Liberation Sans,44,&H00F3E7D0,&H00FFFFFF,&H50201410,&H00000000,1,0,0,0,100,100,0,0,3,9,0,2,120,120,26,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:04.19,en,,0,0,0,,{\rzh}有一天，安達雷一家受邀參加鄰村的婚禮。\N{\ren}One day, Andare's family was invited to a nearby village wedding.
+Dialogue: 0,0:00:04.38,0:00:06.85,en,,0,0,0,,{\rzh}小安達雷當然也想跟著去。\N{\ren}Little Andare wanted to go too, of course.
+Dialogue: 0,0:00:07.08,0:00:11.49,en,,0,0,0,,{\rzh}媽媽知道他有多調皮，根本不打算帶他去。\N{\ren}Knowing how mischievous he could be, his mother had no intention of taking him.
+Dialogue: 0,0:00:11.70,0:00:14.57,en,,0,0,0,,{\rzh}媽媽正準備出門時，安達雷開口了。\N{\ren}As she was getting ready to leave, Andare spoke up.
+Dialogue: 0,0:00:14.82,0:00:18.11,en,,0,0,0,,{\rzh}安達雷：「我也要去參加婚禮！」\N{\ren}Andare: "I want to go to the wedding too!"
+Dialogue: 0,0:00:18.34,0:00:23.11,en,,0,0,0,,{\rzh}媽媽：「好吧，我帶你去，但有一個條件。\N{\ren}Mother: "Fine, I'll take you, but on one condition.
+Dialogue: 0,0:00:23.32,0:00:27.93,en,,0,0,0,,{\rzh}到了那裡，你要待在外面，像頭牛一樣{\c&H33D7FF&}（意思是「像老鼠一樣安靜」）{\rzh}，\N一句話都不准說。」\N{\ren}When we get there, you must stay outside and behave like a bull {\c&H33D7FF&}("be as quiet as a mouse"){\ren}, without a word."
+Dialogue: 0,0:00:28.48,0:00:31.15,en,,0,0,0,,{\rzh}安達雷答應了，他們就出發去參加婚禮。\N{\ren}Andare agreed, and they set off for the wedding.
+Dialogue: 0,0:00:31.48,0:00:34.99,en,,0,0,0,,{\rzh}一到那裡，媽媽就把他留在外面，自己走進屋裡。\N{\ren}Upon arriving, his mother left him outside and stepped into the house.
+Dialogue: 0,0:00:35.24,0:00:39.81,en,,0,0,0,,{\rzh}媽媽：「謝天謝地，我兒子今天居然這麼乖，\N{\ren}Mother: "Thank goodness. My son is actually being good today,
+Dialogue: 0,0:00:39.88,0:00:41.79,en,,0,0,0,,{\rzh}完全照我說的做。」\N{\ren}he's doing just what I told him."
+Dialogue: 0,0:00:42.38,0:00:47.53,en,,0,0,0,,{\rzh}沒過多久，辦婚禮的那戶人家門口突然一陣大騷動！\N{\ren}Not long after, a huge commotion broke out in front of the wedding house!
+Dialogue: 0,0:00:47.72,0:00:51.37,en,,0,0,0,,{\rzh}安達雷的媽媽嚇了一跳，趕緊跑出來看看發生了什麼事。\N{\ren}Alarmed, Andare's mother came running out to see what was going on.
+Dialogue: 0,0:00:51.50,0:00:56.16,en,,0,0,0,,{\rzh}她看到了什麼呢？只見安達雷手腳並用趴在地上，\N{\ren}And what did she find? There was Andare, on his hands and knees,
+Dialogue: 0,0:00:56.18,0:01:02.05,en,,0,0,0,,{\rzh}到處衝來衝去，用頭頂每一個人，不分男女老少！\N{\ren}charging around and headbutting everyone, men and women, young and old alike!
+Dialogue: 0,0:01:02.34,0:01:07.15,en,,0,0,0,,{\rzh}他把頭左右搖晃，翻著白眼，一頭撞向人群。\N{\ren}He was tilting his head side to side, rolling his eyes, and ramming into people.
+Dialogue: 0,0:01:07.38,0:01:09.85,en,,0,0,0,,{\rzh}她立刻衝過去，一把抓住他。\N{\ren}She rushed over and grabbed hold of him at once.
+Dialogue: 0,0:01:10.08,0:01:14.53,en,,0,0,0,,{\rzh}媽媽：「兒子，你到底在做什麼？\N{\ren}Mother: "What on earth are you doing, son?
+Dialogue: 0,0:01:14.90,0:01:17.93,en,,0,0,0,,{\rzh}你忘了我們來之前我跟你說的話嗎？」\N{\ren}Have you forgotten what I told you before we came here?"
+Dialogue: 0,0:01:18.26,0:01:20.85,en,,0,0,0,,{\rzh}安達雷：「我記得啊，媽媽。」\N{\ren}Andare: "I remember, Mother."
+Dialogue: 0,0:01:21.02,0:01:24.87,en,,0,0,0,,{\rzh}媽媽：「那你為什麼要去煩這些人？」\N{\ren}Mother: "Then why are you bothering all these people?"
+Dialogue: 0,0:01:25.08,0:01:29.71,en,,0,0,0,,{\rzh}安達雷：「是妳叫我要像頭牛一樣的啊！{\c&H33D7FF&}（意思是「像老鼠一樣安靜」）{\rzh}\N{\ren}Andare: "Well, you're the one who told me to behave like a bull! {\c&H33D7FF&}("be as quiet as a mouse"){\ren}
+Dialogue: 0,0:01:29.90,0:01:34.99,en,,0,0,0,,{\rzh}所以我記住妳的話，就像牛一樣用頭去頂人啦！」\N{\ren}So I remembered what you said and started headbutting people just like one!"
+Dialogue: 0,0:01:35.72,0:01:38.71,en,,0,0,0,,{\rzh}聽到這裡，大家都哈哈大笑。\N{\ren}At that, everyone burst out laughing.
