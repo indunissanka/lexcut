@@ -6,6 +6,7 @@
 - **Captions:**
   - `motion/stag/subs/stag.en.srt`: English
   - `motion/stag/subs/stag.zh-TW.srt`: Chinese (Taiwan), Traditional
+  - `motion/stag/subs/stag.ja.srt`: Japanese
 - **Thumbnail:** `motion/stag/youtube/thumbnail.jpg` (1920x1080)
 
 ## Title
@@ -15,7 +16,7 @@ A Stag at the Wedding | Andare Pop-Up Story 安達雷：婚禮上的「牛」
 Andare's mother takes him to a village wedding on one condition: stay outside and "behave like a bull", without a word. In other words, "be as quiet as a mouse"! But Andare takes her at her word...
 
 A paper pop-up retelling of a classic Sri Lankan Andare folk tale.
-Subtitles: English and Traditional Chinese (click CC).
+Subtitles: English, Traditional Chinese and Japanese (click CC).
 
 安達雷的媽媽帶他去參加婚禮，條件是：待在外面，「像頭牛一樣」，一句話都不准說，意思是「像老鼠一樣安靜」！沒想到安達雷真的照字面去做了……
 
@@ -38,4 +39,4 @@ Andare, Sri Lankan folk tale, Andare stories, pop-up book, paper animation, kids
 ## Settings
 - Audience: "Yes, it's made for kids" if your channel targets children; otherwise "No"
 - Category: Film & Animation (or Education)
-- Video language: English. Caption languages: English, Chinese (Taiwan)
+- Video language: English. Caption languages: English, Chinese (Taiwan), Japanese
