@@ -18,7 +18,8 @@ work/
 *.log
 
 # Claude Code local settings
-.claude/
+.claude/*
+!.claude/skills/
 
 # Anything that might hold keys or personal voice data
 *.env
