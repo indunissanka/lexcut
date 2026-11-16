@@ -1,6 +1,6 @@
 ---
 name: girl
-description: "Girl" cartoon animation. A detailed, looping HTML5 canvas cartoon of a little girl in a yellow sundress running through a sunny meadow, chasing a monarch butterfly. Use when the user asks for the Girl animation, a girl or child chasing a butterfly, or a variation of it (different dress, hair, colours, speed, time of day, extra characters), or wants it fixed, extended or exported.
+description: "Girl" cartoon animation. A detailed, looping HTML5 canvas cartoon of a little girl in a yellow sundress running through a sunny meadow, chasing a monarch butterfly, plus a version with her brother and little sister, each chasing a butterfly, shown with changing camera angles. Use when the user asks for the Girl animation, children chasing butterflies, or a variation of it (different clothes, hair, colours, speed, time of day, more characters, camera shots), or wants it fixed, extended or exported.
 ---
 
 # Girl: little girl chasing a butterfly
@@ -63,10 +63,39 @@ node scripts/inspect.js <copy>.html <outDir> 0,0.095,0.19,0.285,0.38,0.475
 
 This saves close-ups of the girl across one full stride (time is frozen, so the frames are exact). Look at them for the problems listed in the rules above: neck, arms and elbows, hair, bow, feet, and legs hidden in the grass.
 
+## Three children with camera angles (`assets/three-children.html`)
+
+This version has the girl, a **big brother** (striped blue T-shirt, shorts, short spiky hair, sneakers) and a **little sister** (pink dress, blonde pigtails with a bow, smaller). Each chases their own butterfly (orange, blue, yellow), and a **camera shot list** cuts between angles in a 36-second loop.
+
+- **Children** are entries in `KIDS`, made with `makeKid({...})`. `drawGirl(g,t,x,bfx,bfy,K)` draws any child from its settings:
+  - `outfit`: `'dress'` or `'shirt'`
+  - `hair`: `'braid'`, `'pigtails'` or `'short'`
+  - colours: `skin`, `hairC`, `eye`, `dress`, `shirt`, `shorts`, `sleeve`, `shoes` and `bow`
+  - `freckles` and `lashes`
+  - `S` (size), `gy` (the depth they run at) and `phase`
+- **Feet stay planted for every child.** `makeKid` sets each child's step rate (`hz`) from the ground speed at their depth (`parAt(gy)`) and their size, so the stride always matches the ground under them.
+- **Depth:** grass and flowers are drawn in bands, so each child sits at their own depth in the meadow.
+- **Butterflies:** `bOff` = [x ahead, height, size]. Keep each butterfly **above and ahead of its child**, and above the next child's head (the brother's flies at -440). Otherwise it covers a face.
+- **The reaching arm is limited** (`target ≤ 1.85`) so a hand never crosses the face, even when the butterfly is high.
+- **Camera:** `SHOTS` = [start, end, fromView, toView, label], in seconds within the loop. A view is `{x, y, z, r}`, where `z` is zoom and `r` is roll (dutch angle). `viewAt` clamps the view inside the painted world, so you can't zoom out below 1. The current shots:
+  - a wide shot of all three
+  - close-ups of the girl, the brother and the sister
+  - a low-angle shot
+  - a butterfly close-up
+  - a dutch angle
+  - a high pull-back
+- **Checking:**
+
+  ```bash
+  node scripts/storyboard.js <copy>.html <out> 3,8,12,16,20,24,28.5,33
+  ```
+
+  This saves one frame per shot as a contact sheet. Check that no face is covered by a hand or a butterfly.
+
 ## Ideas the user may ask for next
 
 - An ending where the butterfly lands on her finger.
-- A puppy or a friend running with her.
-- Music and sound effects.
+- A puppy running with the children.
+- Music, laughter and sound effects. The **cartoon-story** skill has the voice, music and mixing tools.
 - A sunset version.
-- Recording to MP4: capture frames with Playwright and join them with ffmpeg if it's available.
+- Recording to MP4: freeze time with Playwright and join the frames with ffmpeg. See the **cartoon-story** skill's `render-part.js` and `make_video.sh`.
