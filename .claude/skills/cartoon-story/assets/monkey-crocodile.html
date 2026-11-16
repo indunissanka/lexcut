@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Clever Monkey and the Greedy Crocodile</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden}
+  canvas{display:block;width:100vw;height:100vh}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// =====================================================================================
+//  The Clever Monkey and the Greedy Crocodile  –  built with the "Girl" skill engine
+//  (code-drawn cartoon, ink outlines, gradients, parallax, IK limbs, frozen-time render)
+// =====================================================================================
+const W=1600,H=900,END=142.5;
+// timeline stretched to fit the narration: [new_time, story_time] breakpoints
+const WARP=[[0.0, 0.0], [1.0, 1.0], [6.523, 4.5], [7.023, 5.0], [12.076, 9.0], [12.576, 9.5], [18.973, 14.0], [19.173, 14.2], [23.139, 17.5], [23.639, 18.0], [28.991, 22.0], [29.291, 22.3], [31.827, 24.5], [32.327, 25.0], [35.076, 27.0], [35.576, 27.5], [39.989, 30.5], [40.289, 30.8], [42.804, 32.8], [43.204, 33.2], [47.831, 36.5], [48.131, 36.8], [51.591, 39.5], [52.091, 40.0], [57.4, 43.5], [57.7, 43.8], [60.065, 45.5], [60.565, 46.0], [66.643, 50.0], [67.143, 50.5], [70.191, 53.0], [70.691, 53.5], [75.765, 56.5], [76.265, 57.0], [79.192, 59.0], [79.692, 59.5], [85.84, 63.0], [86.34, 63.5], [92.631, 67.5], [93.131, 68.0], [95.581, 70.0], [96.081, 70.5], [98.381, 72.8], [99.181, 75.2], [104.043, 79.5], [104.343, 79.8], [109.055, 83.8], [109.455, 84.2], [113.271, 87.0], [113.771, 87.5], [120.388, 91.0], [120.888, 91.5], [125.173, 94.5], [125.673, 95.0], [129.788, 97.8], [130.188, 98.2], [134.388, 101.2], [134.888, 101.7], [140.539, 106.0], [141.039, 106.5], [144.343, 109.5], [144.843, 110.0], [150.067, 114.5], [150.567, 115.0], [155.456, 117.0], [155.956, 117.5], [159.629, 120.0], [159.929, 120.3], [162.129, 122.5], [162.629, 123.0], [166.467, 125.5], [166.967, 126.0], [171.017, 129.0], [171.517, 129.5], [174.352, 132.0], [174.852, 132.5], [179.031, 136.0], [179.531, 136.5], [186.568, 142.0], [187.068, 142.5]], TOTAL=187.068;
+function storyTime(t){for(let i=1;i<WARP.length;i++){const [a1,o1]=WARP[i],[a0,o0]=WARP[i-1];if(t<=a1)return a1>a0?o0+(o1-o0)*(t-a0)/(a1-a0):o0;}return END;}
+let RT=0;   // real (video) time: drives water, grass, blinking and mouth flaps so stretched scenes never look slow-motion
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let scale=1,ox=0,oy=0;
+function resize(){const d=window.__RENDER?1:Math.min(devicePixelRatio||1,2);cv.width=innerWidth*d;cv.height=innerHeight*d;
+  scale=Math.max(cv.width/W,cv.height/H);ox=(cv.width-W*scale)/2;oy=(cv.height-H*scale)/2;}
+addEventListener('resize',resize);resize();
+
+// ---------------- helpers ----------------
+let seed=21;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+function noise(n){const v=[];for(let i=0;i<n;i++)v.push(rnd());
+  return x=>{const i=Math.floor(x),f=x-i,a=v[((i%n)+n)%n],b=v[(((i+1)%n)+n)%n],s=f*f*(3-2*f);return a+(b-a)*s;};}
+const fbm=(nz,u)=>nz(u)*.55+nz(u*2)*.27+nz(u*4)*.12+nz(u*8)*.06;
+function off(w,h,fn){const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'));return c;}
+function lin(g,x0,y0,x1,y1,st){const gr=g.createLinearGradient(x0,y0,x1,y1);st.forEach(s=>gr.addColorStop(s[0],s[1]));return gr;}
+function rad(g,x,y,r,st,x1,y1){const gr=g.createRadialGradient(x1??x,y1??y,0,x,y,r);st.forEach(s=>gr.addColorStop(s[0],s[1]));return gr;}
+const mod=(a,b)=>((a%b)+b)%b, clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)), lerp=(a,b,k)=>a+(b-a)*k;
+const sm=k=>{k=clamp(k);return k*k*(3-2*k);}, seg=(t,a,b)=>clamp((t-a)/(b-a));
+const INK='rgba(55,30,15,0.85)';
+function fs(g,fill,stroke=INK,lw=2){g.fillStyle=fill;g.fill();if(stroke){g.strokeStyle=stroke;g.lineWidth=lw;g.lineJoin='round';g.stroke();}}
+const inW=(t,a,b)=>t>=a&&t<b;
+const talkAmt=(t,on)=>on?0.35+0.65*Math.abs(Math.sin(RT*13))*(0.6+0.4*Math.sin(RT*4.7)):0;
+
+// ---------------- world layout ----------------
+const GY=585, WY=606;                 // left-bank ground top, water surface
+const RIVER_L=600, RIVER_R=3320;      // river spans between the banks
+const TREE_X=170, BRANCH_Y=338, SEAT_X=318;   // climbing tree (trunk x), branch height, monkey seat
+const VINE={x:-520,y:-40,len:440};
+const BANK_X=470;                     // where the monkey stands at the river's edge
+
+// ---------------- sky & far layers (screen space, parallax) ----------------
+const sky=off(W,H,g=>{
+  g.fillStyle=lin(g,0,0,0,H,[[0,'#3f8fd6'],[.45,'#8fd0f0'],[.72,'#d8f1f2'],[1,'#f4f7e2']]);g.fillRect(0,0,W,H);
+  g.fillStyle=rad(g,1250,140,700,[[0,'rgba(255,253,230,1)'],[.07,'rgba(255,246,200,.85)'],[.3,'rgba(255,240,190,.25)'],[1,'rgba(255,240,190,0)']]);g.fillRect(0,0,W,H);
+});
+function cloud(w,h){return off(w,h,g=>{
+  const puffs=[];for(let i=0;i<9;i++)puffs.push([w*.18+i/8*w*.64+(rnd()-.5)*20,h*.55-Math.sin(i/8*Math.PI)*h*.22+(rnd()-.5)*10,h*.14+Math.sin(i/8*Math.PI)*h*.12+rnd()*10]);
+  g.filter='blur(1.5px)';
+  for(const [x,y,r] of puffs){g.fillStyle='rgba(185,205,230,1)';g.beginPath();g.arc(x,y+6,r,0,7);g.fill();}
+  for(const [x,y,r] of puffs){g.fillStyle=rad(g,x,y,r,[[0,'#ffffff'],[.7,'#f7fbff'],[1,'#dfe8f5']],x+r*.3,y-r*.4);g.beginPath();g.arc(x,y,r*.94,0,7);g.fill();}
+});}
+const clouds=[{img:cloud(420,170),x:80,y:40},{img:cloud(330,140),x:700,y:120},{img:cloud(470,190),x:1150,y:30},{img:cloud(300,120),x:1550,y:170}];
+
+function ridgeLayer(baseY,amp,n,c1,c2,haze,palms){
+  const nz=noise(n);
+  return off(W*2,H,g=>{
+    const pts=[];g.beginPath();g.moveTo(0,H);
+    for(let x=0;x<=W*2;x+=4){const y=baseY-fbm(nz,x/(W*2)*n)*amp;pts.push([x,y]);g.lineTo(x,y);}
+    g.lineTo(W*2,H);g.closePath();g.fillStyle=lin(g,0,baseY-amp,0,baseY+200,[[0,c1],[1,c2]]);g.fill();
+    // rounded canopy bumps along the top
+    for(let i=0;i<pts.length;i+=7){const [x,y]=pts[i];g.fillStyle=c1;g.beginPath();g.arc(x,y+6,10+rnd()*14,0,7);g.fill();}
+    for(let i=0;i<palms;i++){const [x,y]=pts[Math.floor(rnd()*pts.length)],h=50+rnd()*60;
+      for(const dx of [0,-W*2,W*2]){const X=x+dx;g.strokeStyle=c1;g.lineWidth=4;g.beginPath();g.moveTo(X,y+10);g.quadraticCurveTo(X+8,y-h/2,X+4,y-h);g.stroke();
+        g.fillStyle=c1;for(let k=0;k<7;k++){const a=-Math.PI/2+(k-3)*.5;g.beginPath();g.ellipse(X+4+Math.cos(a)*16,y-h+Math.sin(a)*10+6,20,5,a,0,7);g.fill();}}}
+    g.globalCompositeOperation='source-atop';g.fillStyle=`rgba(210,235,240,${haze})`;g.fillRect(0,0,W*2,H);
+  });
+}
+const farHills=ridgeLayer(520,170,7,'#79a7b8','#a8cbd2',.35,0);
+const midJungle=ridgeLayer(575,120,11,'#3f7d4a','#5d9a5a',.18,26);
+
+// ---------------- jungle sprites ----------------
+function leafShape(g,len,wid){g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(len*.5,-wid,len,0);g.quadraticCurveTo(len*.5,wid,0,0);}
+function makePalm(h,lean){return off(420,h+140,g=>{
+  const bx=210,by=h+130,tx=bx+lean,ty=140;
+  // trunk with rings
+  for(let i=0;i<=24;i++){const k=i/24,x=lerp(bx,tx,k)+Math.sin(k*3)*lean*.15,y=lerp(by,ty,k),w=lerp(16,9,k);
+    g.beginPath();g.ellipse(x,y,w,7,0,0,7);fs(g,lin(g,x-w,0,x+w,0,[[0,'#5e4126'],[.6,'#9a7247'],[1,'#c19a66']]),'rgba(50,30,15,.7)',1.2);}
+  // coconuts
+  for(const [dx,dy] of [[-8,8],[6,10],[0,16]]){g.beginPath();g.arc(tx+dx,ty+dy,7,0,7);fs(g,rad(g,tx+dx,ty+dy,7,[[0,'#8a6a3a'],[1,'#4e3518']],tx+dx-2,ty+dy-2),INK,1.2);}
+  // fronds
+  for(let k=0;k<9;k++){const a=-Math.PI+k/8*Math.PI+(rnd()-.5)*.2,len=110+rnd()*40;
+    g.save();g.translate(tx,ty);g.rotate(a);
+    g.strokeStyle='#3d6b25';g.lineWidth=3;g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(len*.5,-14,len,22);g.stroke();
+    for(let j=1;j<16;j++){const u=j/16,px=len*u,py=-14*4*u*(1-u)+22*u*u;
+      for(const sd of [-1,1]){g.save();g.translate(px,py);g.rotate(sd*1.1+.5);g.fillStyle=`hsl(${100+rnd()*20},55%,${30+rnd()*14}%)`;
+        g.beginPath();g.ellipse(9,0,11*(1-u*.5),3,0,0,7);g.fill();g.restore();}}
+    g.restore();}
+});}
+function makeJungleTree(w,h,dark){return off(w+80,h+40,g=>{
+  const bx=(w+80)/2,by=h+30;
+  // buttress roots + trunk
+  g.beginPath();g.moveTo(bx-40,by);g.quadraticCurveTo(bx-18,by-20,bx-16,by-h*.55);g.lineTo(bx+16,by-h*.55);g.quadraticCurveTo(bx+18,by-20,bx+44,by);g.closePath();
+  fs(g,lin(g,bx-40,0,bx+40,0,[[0,'#3b2a1a'],[.55,'#6d4c2e'],[1,'#8f6a43']]),'rgba(35,20,10,.8)',1.5);
+  g.strokeStyle='rgba(30,18,8,.45)';g.lineWidth=1.3;for(let i=0;i<10;i++){const x=bx+(rnd()-.5)*24,y=by-rnd()*h*.5;g.beginPath();g.moveTo(x,y);g.quadraticCurveTo(x+3,y-10,x,y-22);g.stroke();}
+  // canopy of big tropical leaves
+  const cy=by-h*.62;
+  const cl=[];for(let i=0;i<9;i++){const a=i/9*6.28;cl.push([bx+Math.cos(a)*w*.32,cy+Math.sin(a)*h*.16,w*.2+rnd()*w*.06]);}cl.push([bx,cy-h*.08,w*.26]);
+  for(const [x,y,r] of cl){g.fillStyle=dark?'#1f4a22':'#285a28';g.beginPath();g.arc(x,y+5,r,0,7);g.fill();}
+  for(const [x,y,r] of cl){g.fillStyle=rad(g,x,y,r,[[0,dark?'#3f7d3a':'#5aa546'],[1,dark?'#24502a':'#2f6a2c']],x+r*.3,y-r*.4);g.beginPath();g.arc(x,y,r*.95,0,7);g.fill();
+    for(let k=0;k<26;k++){const a=rnd()*6.28,d=Math.sqrt(rnd())*r*.9,lx=x+Math.cos(a)*d,ly=y+Math.sin(a)*d,light=clamp(.5+((lx-x)*.5-(ly-y))/(r*2));
+      g.save();g.translate(lx,ly);g.rotate(rnd()*6.28);leafShape(g,16+rnd()*8,6);g.fillStyle=`hsl(${105+rnd()*15},55%,${(dark?16:24)+light*30}%)`;g.fill();
+      g.strokeStyle='rgba(20,50,20,.45)';g.lineWidth=.7;g.beginPath();g.moveTo(0,0);g.lineTo(18,0);g.stroke();g.restore();}}
+  // hanging vines
+  for(let i=0;i<5;i++){const vx=bx+(rnd()-.5)*w*.6,vy=cy+h*.05,len=h*(.25+rnd()*.35);
+    g.strokeStyle='#3e6a2a';g.lineWidth=2;g.beginPath();g.moveTo(vx,vy);g.bezierCurveTo(vx+8,vy+len*.3,vx-8,vy+len*.6,vx+3,vy+len);g.stroke();
+    for(let j=0;j<6;j++){const yy=vy+len*(j+1)/7;g.save();g.translate(vx+Math.sin(j)*5,yy);g.rotate(j%2?.6:2.5);leafShape(g,9,4);g.fillStyle='#4f8f36';g.fill();g.restore();}}
+});}
+function makeBanana(){return off(260,220,g=>{
+  for(let k=0;k<7;k++){const a=-Math.PI/2+(k-3)*.42;g.save();g.translate(130,205);g.rotate(a);
+    g.strokeStyle='#4e7d2a';g.lineWidth=5;g.beginPath();g.moveTo(0,0);g.lineTo(60,0);g.stroke();
+    g.translate(55,0);leafShape(g,120,30);fs(g,lin(g,0,-30,0,30,[[0,'#7fc457'],[.5,'#56a03c'],[1,'#33702a']]),'rgba(25,60,20,.7)',1.4);
+    g.strokeStyle='rgba(230,255,200,.6)';g.lineWidth=1.4;g.beginPath();g.moveTo(0,0);g.lineTo(118,0);g.stroke();
+    g.strokeStyle='rgba(30,70,25,.35)';g.lineWidth=.8;for(let j=1;j<10;j++){g.beginPath();g.moveTo(j*12,0);g.lineTo(j*12+10,j%2?-22:22);g.stroke();}
+    g.restore();}
+});}
+function makeFern(){return off(200,120,g=>{
+  for(let k=0;k<9;k++){const a=-Math.PI+.25+k/8*(Math.PI-.5);g.save();g.translate(100,115);g.rotate(a);
+    g.strokeStyle='#3a6e26';g.lineWidth=2;g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(45,-10,85,8);g.stroke();
+    for(let j=1;j<12;j++){const u=j/12;g.save();g.translate(85*u,-10*4*u*(1-u)+8*u*u);for(const sd of [-1,1]){g.save();g.rotate(sd*1.2);leafShape(g,12*(1-u*.6),3);g.fillStyle=`hsl(${105+rnd()*15},55%,${30+rnd()*14}%)`;g.fill();g.restore();}g.restore();}
+    g.restore();}
+});}
+const palms=[makePalm(330,40),makePalm(380,-50),makePalm(300,20)];
+const jtrees=[makeJungleTree(330,460,false),makeJungleTree(300,420,true),makeJungleTree(360,500,false)];
+const banana=makeBanana(), fern=makeFern();
+// the climbing tree with a long branch reaching toward the river
+const climbTree=off(520,640,g=>{
+  const bx=170,by=620; // sprite coords: trunk at bx, ground at by; branch at y=by-(GY-BRANCH_Y)
+  const brY=by-(GY-BRANCH_Y);
+  g.beginPath();g.moveTo(bx-44,by);g.quadraticCurveTo(bx-20,by-24,bx-20,by-200);g.lineTo(bx-17,by-440);g.lineTo(bx+17,by-440);g.lineTo(bx+20,by-200);g.quadraticCurveTo(bx+20,by-24,bx+48,by);g.closePath();
+  fs(g,lin(g,bx-40,0,bx+40,0,[[0,'#3b2a1a'],[.55,'#6d4c2e'],[1,'#94704a']]),'rgba(35,20,10,.85)',2);
+  g.strokeStyle='rgba(30,18,8,.45)';g.lineWidth=1.3;for(let i=0;i<16;i++){const x=bx+(rnd()-.5)*28,y=by-rnd()*420;g.beginPath();g.moveTo(x,y);g.quadraticCurveTo(x+3,y-10,x,y-24);g.stroke();}
+  // the branch the monkey sits on
+  g.beginPath();g.moveTo(bx+10,brY-14);g.quadraticCurveTo(bx+120,brY-22,bx+250,brY-6);g.quadraticCurveTo(bx+262,brY,bx+250,brY+5);g.quadraticCurveTo(bx+120,brY-2,bx+10,brY+16);g.closePath();
+  fs(g,lin(g,0,brY-20,0,brY+16,[[0,'#94704a'],[1,'#5a3e24']]),'rgba(35,20,10,.85)',2);
+  for(const [x,y,r] of [[bx+250,brY-20,30],[bx+215,brY-34,24]]){g.fillStyle=rad(g,x,y,r,[[0,'#5aa546'],[1,'#2f6a2c']],x+8,y-10);g.beginPath();g.arc(x,y,r,0,7);g.fill();
+    for(let k=0;k<14;k++){const a=rnd()*6.28,d=rnd()*r;g.save();g.translate(x+Math.cos(a)*d,y+Math.sin(a)*d);g.rotate(rnd()*6.28);leafShape(g,16,6);g.fillStyle=`hsl(${105+rnd()*15},55%,${28+rnd()*24}%)`;g.fill();g.restore();}}
+  // big canopy on top
+  const cy=by-470;const cl=[];for(let i=0;i<10;i++){const a=i/10*6.28;cl.push([bx+Math.cos(a)*110,cy+Math.sin(a)*55,62+rnd()*20]);}cl.push([bx,cy-25,80]);
+  for(const [x,y,r] of cl){g.fillStyle='#285a28';g.beginPath();g.arc(x,y+5,r,0,7);g.fill();}
+  for(const [x,y,r] of cl){g.fillStyle=rad(g,x,y,r,[[0,'#5aa546'],[1,'#2f6a2c']],x+r*.3,y-r*.4);g.beginPath();g.arc(x,y,r*.95,0,7);g.fill();
+    for(let k=0;k<30;k++){const a=rnd()*6.28,d=Math.sqrt(rnd())*r*.9,lx=x+Math.cos(a)*d,ly=y+Math.sin(a)*d,light=clamp(.5+((lx-x)*.5-(ly-y))/(r*2));
+      g.save();g.translate(lx,ly);g.rotate(rnd()*6.28);leafShape(g,18,7);g.fillStyle=`hsl(${105+rnd()*15},55%,${24+light*30}%)`;g.fill();g.restore();}}
+  // bananas hanging
+  for(let i=0;i<4;i++){g.save();g.translate(bx+60+i*8,cy+50);g.rotate(.3);g.beginPath();g.ellipse(0,0,4,12,0,0,7);fs(g,'#f7d23a','rgba(100,70,0,.7)',1);g.restore();}
+});
+const CT_OFF={x:170,y:620};   // sprite anchor of climbTree
+
+// scatter of jungle props in world coordinates
+const props=[];
+(function(){
+  for(let x=-2700;x<-260;x+=95+rnd()*70){const r=rnd();
+    props.push({x,y:GY+4,layer:0,img:r<.4?palms[Math.floor(rnd()*3)]:jtrees[Math.floor(rnd()*3)],ax:.5,ay:1,s:.8+rnd()*.4});}
+  for(let x=-2650;x<-200;x+=70+rnd()*60) if(x<-800||x>-260) props.push({x,y:GY+8,layer:1,img:rnd()<.5?banana:fern,ax:.5,ay:1,s:.7+rnd()*.5});
+  for(let x=RIVER_R+80;x<4600;x+=110+rnd()*60){const r=rnd();props.push({x,y:GY+4,layer:0,img:r<.5?palms[Math.floor(rnd()*3)]:jtrees[Math.floor(rnd()*3)],ax:.5,ay:1,s:.8+rnd()*.4});}
+  for(let x=RIVER_R+60;x<4600;x+=80+rnd()*60) props.push({x,y:GY+8,layer:1,img:rnd()<.5?banana:fern,ax:.5,ay:1,s:.7+rnd()*.5});
+  // a couple of palms well back from the bank (not near enough to help cross the river)
+  props.push({x:-160,y:GY+4,layer:0,img:palms[1],ax:.5,ay:1,s:.9});
+})();
+const tufts=[];for(let x=-2700;x<4600;x+=9){if(x>RIVER_L-20&&x<RIVER_R+20)continue;tufts.push({x,h:6+rnd()*12,c:`hsl(${90+rnd()*30},55%,${26+rnd()*16}%)`,ph:rnd()*6});}
+const flowersW=[];for(let i=0;i<70;i++){let x=-2600+rnd()*7200;if(x>RIVER_L-40&&x<RIVER_R+40)continue;flowersW.push({x,c:['#ff5d8f','#ffd23f','#ff7a3d','#c77dff','#ffffff'][i%5]});}
+const lily=[];for(let i=0;i<14;i++){const near=i%2?RIVER_L+40+rnd()*260:RIVER_R-40-rnd()*260;lily.push({x:near,y:WY+6+rnd()*30,r:14+rnd()*10,fl:rnd()<.4});}
+const reeds=[];for(let i=0;i<30;i++){const x=i<15?RIVER_L-30+rnd()*70:RIVER_R-40+rnd()*70;reeds.push({x,h:40+rnd()*50,ph:rnd()*6});}
+const streaks=[];for(let i=0;i<140;i++)streaks.push({x:RIVER_L+rnd()*(RIVER_R-RIVER_L),y:WY+12+Math.pow(rnd(),1.4)*300,l:20+rnd()*60,sp:50+rnd()*70});
+
+// ---------------- characters ----------------
+function ik(sx,sy,tx,ty,l1,l2,elbowForward){
+  let dx=tx-sx,dy=ty-sy,d=Math.hypot(dx,dy);const m=l1+l2-.01;if(d>m){dx*=m/d;dy*=m/d;d=m;}if(d<1e-3)d=1e-3;
+  const th=Math.atan2(dx,dy),al=Math.acos(clamp((l1*l1+d*d-l2*l2)/(2*l1*d),-1,1)),be=Math.acos(clamp((l1*l1+l2*l2-d*d)/(2*l1*l2),-1,1));
+  return elbowForward?[th-al,Math.PI-be]:[th+al,-(Math.PI-be)];
+}
+function limb(g,x,y,a1,l1,a2,l2,w1,w2,col){
+  const kx=x+Math.sin(a1)*l1,ky=y+Math.cos(a1)*l1,b=a1+a2,fx=kx+Math.sin(b)*l2,fy=ky+Math.cos(b)*l2;
+  g.lineCap='round';g.lineJoin='round';
+  g.strokeStyle=INK;g.lineWidth=w1+3;g.beginPath();g.moveTo(x,y);g.lineTo(kx,ky);g.lineTo(fx,fy);g.stroke();
+  g.strokeStyle=col;g.lineWidth=w1;g.beginPath();g.moveTo(x,y);g.lineTo(kx,ky);g.stroke();
+  g.lineWidth=w2;g.beginPath();g.moveTo(kx,ky);g.lineTo(fx,fy);g.stroke();
+  return {kx,ky,fx,fy,b};
+}
+
+// ---- MONKEY ----
+const MK={l1:21,l2:21,t1:19,t2:18};
+function walkPose(t,v,hz,base){ // feet planted: stance foot moves back at exactly v (world units/s)
+  const u=(t*hz)%1,half=(v/hz)*.5/2,hipY=-34+1.5*Math.cos(4*Math.PI*u);
+  const foot=uu=>uu<.5?[half-2*half*(uu/.5),0]:(()=>{const k=(uu-.5)/.5,e=k*k*(3-2*k);return[-half+2*half*e,-12*Math.sin(Math.PI*k)];})();
+  const p=Object.assign({},base||{});p.hipY=hipY;p.fN=foot(u);p.fF=foot((u+.5)%1);
+  const sw=Math.cos(u*Math.PI*2);p.hN=[-sw*12+4,hipY-6];p.hF=[sw*12-2,hipY-6];p.tail=Math.sin(t*6);
+  return p;
+}
+const POSE={
+  stand:()=>({hipY:-34,fN:[6,0],fF:[-5,0],hN:[10,-24],hF:[-6,-24],tail:0}),
+  sit:()=>({hipY:-12,fN:[24,-2],fF:[18,0],hN:[22,-22],hF:[16,-20],tail:0}),
+  sitBranch:()=>({hipY:-2,fN:[14,28],fF:[8,30],hN:[18,-8],hF:[-8,-6],tail:0,dangle:true}),
+  ride:()=>({hipY:-12,fN:[26,-2],fF:[20,0],hN:[24,-24],hF:[18,-22],tail:0}),
+};
+function drawMonkey(g,m,t){
+  const P=m.pose,F=m.face||{},s=m.s||1,fat=m.fat?1:0;
+  g.save();g.translate(m.x,m.y);if(m.rot)g.rotate(m.rot);g.scale((m.f||1)*s,s);
+  const hipY=P.hipY,shY=hipY-32-fat*6,headX=6,headY=hipY-58-fat*10+(P.headDy||0);
+  const fur=lin(g,-20,hipY-60,24,hipY+10,[[0,'#4e2d14'],[.5,'#7a4a22'],[1,'#a26a35']]);
+  const furD='#5e3818';
+  // tail
+  const tw=P.tail||0;
+  g.lineCap='round';g.strokeStyle=INK;g.lineWidth=9;
+  const tailPath=()=>{g.beginPath();g.moveTo(-12,hipY-4);g.bezierCurveTo(-44,hipY+6+tw*6,-62,hipY-30+tw*10,-50,hipY-56+tw*4);g.bezierCurveTo(-42,hipY-70,-26,hipY-62,-32,hipY-50);};
+  tailPath();g.stroke();g.strokeStyle=furD;g.lineWidth=6;tailPath();g.stroke();
+  // far limbs
+  const lw=MK.t1+fat*6;
+  const legF=ik(-4,hipY,P.fF[0],P.fF[1],MK.l1,MK.l1,false);
+  const LF=limb(g,-4,hipY,legF[0],MK.l1,legF[1],MK.l1,9+fat*4,8+fat*3,furD);foot(g,LF,'#c99a6c',P.dangle);
+  const armF=ik(-2,shY,P.hF[0],P.hF[1],MK.l1,MK.l2,true);
+  const AF=limb(g,-2,shY,armF[0],MK.l1,armF[1],MK.l2,8+fat*3,7+fat*3,furD);hand(g,AF,'#c99a6c',false);
+  // body
+  g.beginPath();g.ellipse(fat*4,hipY-18-fat*6,19+fat*28,25+fat*16,0,0,7);fs(g,fur,INK,2.2);
+  g.beginPath();g.ellipse(5+fat*8,hipY-15-fat*6,11+fat*21,17+fat*13,0,0,7);fs(g,lin(g,0,hipY-35,0,hipY,[[0,'#f7d6ab'],[1,'#e3b07f']]),null);
+  g.strokeStyle='rgba(255,230,180,.6)';g.lineWidth=2.5;g.beginPath();g.ellipse(fat*4,hipY-18-fat*6,17+fat*28,23+fat*16,0,-1.2,.3);g.stroke();
+  // near leg
+  const legN=ik(5,hipY,P.fN[0],P.fN[1],MK.l1,MK.l1,false);
+  const LN=limb(g,5,hipY,legN[0],MK.l1,legN[1],MK.l1,10+fat*4,9+fat*3,'#7a4a22');foot(g,LN,'#e7b98a',P.dangle);
+  // head
+  drawMonkeyHead(g,headX,headY,F,t,fat,m.bow);
+  // near arm (+ banana)
+  const armN=ik(5,shY,P.hN[0],P.hN[1],MK.l1,MK.l2,true);
+  const AN=limb(g,5,shY,armN[0],MK.l1,armN[1],MK.l2,9+fat*3,8+fat*3,'#7a4a22');
+  if(m.banana){g.save();g.translate(AN.fx,AN.fy);g.rotate(-.6);g.beginPath();g.moveTo(-4,4);g.quadraticCurveTo(2,-20,14,-26);g.quadraticCurveTo(10,-12,4,6);g.closePath();fs(g,lin(g,0,-26,0,6,[[0,'#ffe36a'],[1,'#f2b81f']]),'rgba(110,70,0,.8)',1.4);
+    g.fillStyle='#5a3a10';g.beginPath();g.arc(14,-26,2,0,7);g.fill();g.restore();}
+  hand(g,AN,'#e7b98a',F.point);
+  g.restore();
+}
+function foot(g,L,col,dangle){g.save();g.translate(L.fx,L.fy);g.rotate(dangle?.5:0);g.beginPath();g.ellipse(6,0,10,5,0,0,7);fs(g,col,INK,1.6);
+  g.strokeStyle='rgba(90,50,20,.6)';g.lineWidth=1;for(let k=0;k<3;k++){g.beginPath();g.moveTo(11+k*1.5,-3+k*2.5);g.lineTo(15+k*1.5,-3+k*2.5);g.stroke();}g.restore();}
+function hand(g,L,col,point){g.save();g.translate(L.fx,L.fy);g.beginPath();g.arc(0,0,6,0,7);fs(g,col,INK,1.6);
+  if(point){g.save();g.rotate(-L.b+Math.PI);g.beginPath();g.ellipse(0,9,2.4,7,0,0,7);fs(g,col,INK,1.3);g.restore();}
+  g.restore();}
+function drawMonkeyHead(g,hx,hy,F,t,fat,bow){
+  const sk=lin(g,hx,hy-20,hx,hy+20,[[0,'#f9dcb3'],[1,'#e2ad7c']]);
+  // far ear
+  g.beginPath();g.arc(hx+21,hy-8,9,0,7);fs(g,'#6b3f1c',INK,1.8);
+  // skull
+  g.beginPath();g.arc(hx,hy,26+fat*3,0,7);fs(g,rad(g,hx,hy,28,[[0,'#8d5a2b'],[1,'#58331a']],hx+8,hy-12),INK,2.2);
+  // tuft
+  g.beginPath();g.moveTo(hx-10,hy-24);g.quadraticCurveTo(hx-6,hy-38,hx,hy-27);g.quadraticCurveTo(hx+4,hy-40,hx+8,hy-25);g.quadraticCurveTo(hx+14,hy-34,hx+14,hy-22);g.closePath();fs(g,'#58331a',INK,1.6);
+  if(bow){g.save();g.translate(hx-6,hy-26);g.beginPath();g.ellipse(-9,0,10,6,-.4,0,7);g.ellipse(9,0,10,6,.4,0,7);fs(g,'#ff6fa3','rgba(120,0,40,.8)',1.6);g.beginPath();g.arc(0,0,4.5,0,7);fs(g,'#e2456e','rgba(120,0,40,.8)',1.4);g.restore();}
+  // near ear
+  g.beginPath();g.arc(hx-22,hy+2,12,0,7);fs(g,'#6b3f1c',INK,2);g.beginPath();g.arc(hx-22,hy+2,7,0,7);fs(g,'#e8a87c',null);
+  // face mask (heart shape + muzzle)
+  g.beginPath();g.moveTo(hx-3,hy-2);g.bezierCurveTo(hx-3,hy-18,hx+12,hy-20,hx+13,hy-10);g.bezierCurveTo(hx+15,hy-20,hx+30,hy-18,hx+28,hy-4);
+  g.bezierCurveTo(hx+36,hy+2,hx+36,hy+18,hx+22,hy+21);g.bezierCurveTo(hx+10,hy+23,hx-2,hy+16,hx-3,hy-2);g.closePath();fs(g,sk,INK,1.6);
+  // blush
+  g.fillStyle=rad(g,hx+4,hy+8,8,[[0,'rgba(255,120,110,.45)'],[1,'rgba(255,120,110,0)']]);g.beginPath();g.arc(hx+4,hy+8,8,0,7);g.fill();
+  // eyes
+  const look=F.look||[1,0],eyes=F.eyes||'open',blink=(t%4.3)<.12&&eyes==='open';
+  for(const ex of [hx+7,hx+20]){const ey=hy-7;
+    if(eyes==='happy'||eyes==='closed'||blink){g.strokeStyle='#2a140a';g.lineWidth=2.4;g.lineCap='round';g.beginPath();
+      if(eyes==='happy')g.arc(ex,ey+3,5,Math.PI*1.1,Math.PI*1.9);else g.arc(ex,ey-2,5,Math.PI*.1,Math.PI*.9);g.stroke();continue;}
+    const wide=eyes==='wide',rx=wide?6.5:5.4,ry=wide?8.5:6.8;
+    g.beginPath();g.ellipse(ex,ey,rx,ry,0,0,7);fs(g,'#ffffff',INK,1.5);
+    const pr=wide?2.6:3.6;g.beginPath();g.arc(ex+look[0]*1.8,ey+look[1]*2,pr,0,7);g.fillStyle='#2a1508';g.fill();
+    g.fillStyle='#fff';g.beginPath();g.arc(ex+look[0]*1.8+1.2,ey+look[1]*2-1.4,1.2,0,7);g.fill();
+    if(eyes==='sly'){g.fillStyle='#e9b98a';g.beginPath();g.ellipse(ex,ey-3,rx+.6,ry*.6,0,Math.PI,0);g.fill();g.strokeStyle='#2a140a';g.lineWidth=1.8;g.beginPath();g.moveTo(ex-rx,ey-2);g.lineTo(ex+rx,ey-3);g.stroke();}
+  }
+  // brows
+  const brow=F.brow||'normal';g.strokeStyle='#3a1f0c';g.lineWidth=2.4;g.lineCap='round';
+  const bt={normal:[0,0],worried:[-3,3],angry:[3,-2],raised:[-4,-4]}[brow]||[0,0];
+  g.beginPath();g.moveTo(hx+3,hy-17+bt[1]*.0+(brow==='raised'?-3:0));g.lineTo(hx+11,hy-17+bt[0]+(brow==='raised'?-3:0));g.stroke();
+  g.beginPath();g.moveTo(hx+16,hy-17+bt[0]+(brow==='raised'?-3:0));g.lineTo(hx+24,hy-17+bt[1]*.0+(brow==='raised'?-3:0));g.stroke();
+  // nostrils
+  g.fillStyle='#5a3420';g.beginPath();g.ellipse(hx+26,hy+3,1.4,1.1,0,0,7);g.ellipse(hx+30,hy+3,1.4,1.1,0,0,7);g.fill();
+  // mouth
+  const mx=hx+23,my=hy+12,mo=F.mouth||'smile',ta=F.talk||0;
+  g.strokeStyle='#4a1e0c';g.lineWidth=2;g.lineCap='round';
+  if(mo==='smile'&&ta<.05){g.beginPath();g.moveTo(mx-8,my-1);g.quadraticCurveTo(mx,my+5,mx+7,my-2);g.stroke();}
+  else if(mo==='worried'&&ta<.05){g.beginPath();g.moveTo(mx-7,my+2);g.quadraticCurveTo(mx-3,my-2,mx,my+1);g.quadraticCurveTo(mx+3,my+3,mx+6,my);g.stroke();}
+  else{const open=mo==='shout'?7+ta*3:mo==='laugh'?6+ta*3:2+ta*6,wd=mo==='laugh'?10:mo==='shout'?6:8;
+    g.beginPath();if(mo==='shout'){g.ellipse(mx,my+3,wd*.7,open,0,0,7);}else{g.moveTo(mx-wd,my-1);g.quadraticCurveTo(mx,my+1,mx+wd,my-2);g.quadraticCurveTo(mx+wd*.6,my+open+3,mx,my+open+2);g.quadraticCurveTo(mx-wd*.7,my+open+2,mx-wd,my-1);}
+    fs(g,'#7a1f22','#3d0e08',1.6);g.save();g.clip();g.fillStyle='#ff8a8a';g.beginPath();g.ellipse(mx,my+open+2,wd*.6,open*.5,0,0,7);g.fill();
+    if(mo==='laugh'||mo==='grin'){g.fillStyle='#fff';g.fillRect(mx-wd,my-3,wd*2,3.5);}g.restore();}
+}
+// lightbulb idea icon
+function drawBulb(g,x,y,k,t){if(k<=0)return;g.save();g.translate(x,y);g.scale(k,k);
+  g.fillStyle=rad(g,0,0,44,[[0,'rgba(255,240,120,.65)'],[1,'rgba(255,240,120,0)']]);g.beginPath();g.arc(0,0,44,0,7);g.fill();
+  g.strokeStyle='#ffd23f';g.lineWidth=3;g.lineCap='round';for(let i=0;i<8;i++){const a=i/8*6.28+t;g.beginPath();g.moveTo(Math.cos(a)*24,Math.sin(a)*24);g.lineTo(Math.cos(a)*32,Math.sin(a)*32);g.stroke();}
+  g.beginPath();g.arc(0,-2,15,Math.PI*.8,Math.PI*2.2);g.lineTo(6,14);g.lineTo(-6,14);g.closePath();fs(g,rad(g,0,-2,16,[[0,'#fffbd0'],[1,'#ffd84a']],-4,-7),'#8a6a10',1.8);
+  g.fillStyle='#9aa0a8';g.fillRect(-6,14,12,8);g.strokeStyle='#5a6068';g.lineWidth=1;for(let i=0;i<3;i++){g.beginPath();g.moveTo(-6,16+i*2.5);g.lineTo(6,16+i*2.5);g.stroke();}
+  g.restore();}
+
+// ---- CROCODILE ----
+function drawCroc(g,c,t){
+  g.save();g.translate(c.x,c.y);g.scale((c.f??1)*(c.s||1),c.s||1);
+  const ph=c.tail||0,mouth=c.mouth||0,eyes=c.eyes||'normal';
+  const skin=lin(g,0,-60,0,30,[[0,'#2f6b2b'],[.45,'#4f8f39'],[.7,'#7cad4a'],[1,'#c8d98a']]);
+  // paddling legs (mostly under water)
+  for(const [lx,k] of [[-110,0],[95,1.6]]){const a=Math.sin(t*5+k)*.5*(c.paddle??1);g.save();g.translate(lx,18);g.rotate(.5+a);
+    g.beginPath();g.ellipse(0,18,10,22,0,0,7);fs(g,'#3f7d33',INK,2);g.beginPath();g.ellipse(4,40,13,6,0,0,7);fs(g,'#3f7d33',INK,1.6);g.restore();}
+  // tail + body
+  g.beginPath();g.moveTo(130,-30);
+  g.bezierCurveTo(60,-48,-40,-50,-110,-38);
+  const tp=[];for(let i=0;i<=8;i++){const k=i/8,x=-110-k*210,y=-34+k*24+Math.sin(ph-k*3)*k*20;tp.push([x,y,(1-k)*26+3]);}
+  for(const [x,y,w] of tp)g.lineTo(x,y-w*.35);
+  for(let i=tp.length-1;i>=0;i--){const [x,y,w]=tp[i];g.lineTo(x,y+w*.75);}
+  g.bezierCurveTo(-60,34,60,34,130,18);g.closePath();
+  fs(g,skin,INK,2.6);
+  // belly band and scale texture
+  g.save();g.clip();
+  g.fillStyle='rgba(225,235,160,.55)';g.beginPath();g.ellipse(10,26,150,18,0,0,7);g.fill();
+  g.strokeStyle='rgba(30,60,20,.35)';g.lineWidth=1.2;for(let x=-100;x<120;x+=16){g.beginPath();g.moveTo(x,-40);g.lineTo(x+4,10);g.stroke();}
+  for(let i=0;i<26;i++){const x=-280+rnd2(i)*400,y=-30+rnd2(i+50)*30;g.fillStyle='rgba(30,70,25,.35)';g.beginPath();g.ellipse(x,y,6,4,0,0,7);g.fill();}
+  g.restore();
+  // back scutes
+  for(let i=0;i<14;i++){const k=i/14,x=110-k*360;let y;
+    if(x>-110)y=-44-Math.sin(clamp((x+110)/240)*Math.PI)*6;else{const kk=(-110-x)/210;y=-34+kk*24+Math.sin(ph-kk*3)*kk*20-((1-kk)*26+3)*.35;}
+    g.beginPath();g.moveTo(x-7,y+3);g.quadraticCurveTo(x,y-12+k*4,x+7,y+3);g.closePath();fs(g,'#2c5e27',INK,1.4);}
+  // rim light
+  g.strokeStyle='rgba(230,255,190,.55)';g.lineWidth=3;g.beginPath();g.moveTo(120,-34);g.bezierCurveTo(60,-48,-40,-50,-110,-40);g.stroke();
+  // ---- head: hinge at (130,-6)
+  // lower jaw (rotates)
+  g.save();g.translate(130,-2);g.rotate(mouth*.5);
+  g.beginPath();g.moveTo(0,-4);g.lineTo(170,-6);g.quadraticCurveTo(184,-2,176,6);g.quadraticCurveTo(90,22,0,20);g.closePath();
+  fs(g,lin(g,0,-6,0,22,[[0,'#6ea044'],[1,'#c8d98a']]),INK,2.4);
+  if(mouth>.05){g.fillStyle='#b8323a';g.beginPath();g.moveTo(8,-4);g.lineTo(165,-6);g.lineTo(150,0);g.lineTo(10,4);g.closePath();g.fill();
+    g.fillStyle='#e8707a';g.beginPath();g.ellipse(60,-2,40,4,0,0,7);g.fill();if(c.tongue){g.fillStyle='#e8707a';g.beginPath();g.ellipse(150,-8,22,6,-.3,0,7);fs(g,'#ef7a85','#8a1e2a',1.4);}}
+  g.fillStyle='#fffbea';for(let x=20;x<165;x+=13){g.beginPath();g.moveTo(x,-5);g.lineTo(x+5,-14);g.lineTo(x+10,-5);g.closePath();g.fill();g.strokeStyle='rgba(80,80,60,.5)';g.lineWidth=.8;g.stroke();}
+  g.restore();
+  // upper jaw / snout
+  g.beginPath();g.moveTo(80,-40);g.bezierCurveTo(120,-48,150,-46,175,-34);g.lineTo(290,-26);g.quadraticCurveTo(312,-22,306,-6);g.quadraticCurveTo(300,0,290,-2);g.lineTo(130,-4);g.closePath();
+  fs(g,lin(g,0,-48,0,0,[[0,'#2f6b2b'],[.6,'#4f8f39'],[1,'#86b552']]),INK,2.4);
+  g.fillStyle='#fffbea';for(let x=150;x<290;x+=14){g.beginPath();g.moveTo(x,-4);g.lineTo(x+5,6+(mouth>.05?0:-1));g.lineTo(x+10,-4);g.closePath();g.fill();g.strokeStyle='rgba(80,80,60,.5)';g.lineWidth=.8;g.stroke();}
+  g.strokeStyle='rgba(230,255,190,.55)';g.lineWidth=2.5;g.beginPath();g.moveTo(180,-34);g.lineTo(290,-27);g.stroke();
+  // nostrils bump
+  g.beginPath();g.ellipse(294,-26,10,6,0,Math.PI,0);fs(g,'#3f7d33',INK,1.6);g.fillStyle='#173a14';g.beginPath();g.ellipse(292,-28,2.4,1.6,0,0,7);g.ellipse(299,-28,2.4,1.6,0,0,7);g.fill();
+  // eye bump + eye
+  const exx=150,eyy=-60;g.beginPath();g.ellipse(exx,eyy+10,27,23,0,Math.PI,0);fs(g,'#3d7a32',INK,2);
+  if(eyes==='happy'){g.strokeStyle='#1c1c0c';g.lineWidth=3;g.lineCap='round';g.beginPath();g.arc(exx,eyy+2,9,Math.PI*1.1,Math.PI*1.9);g.stroke();}
+  else{const wide=eyes==='wide',r=wide?16:13.5;
+    g.beginPath();g.ellipse(exx,eyy,r,r*.9,0,0,7);fs(g,rad(g,exx,eyy,r,[[0,'#fff6a6'],[1,'#e8c43a']],exx-3,eyy-3),INK,1.8);
+    const lk=c.look||[1,0];g.fillStyle='#120c04';g.beginPath();g.ellipse(exx+lk[0]*3,eyy+lk[1]*2,wide?2.4:3.2,wide?7:8,0,0,7);g.fill();
+    g.fillStyle='#fff';g.beginPath();g.arc(exx+lk[0]*3+3,eyy-4,2,0,7);g.fill();
+    if(eyes==='sly'||eyes==='greedy'){g.fillStyle='#3d7a32';g.beginPath();g.moveTo(exx-r-1,eyy-r);g.lineTo(exx+r+1,eyy-r);g.lineTo(exx+r+1,eyy-1);g.lineTo(exx-r-1,eyy-5);g.closePath();g.fill();
+      g.strokeStyle='#1c1c0c';g.lineWidth=2.4;g.beginPath();g.moveTo(exx-r,eyy-5);g.lineTo(exx+r,eyy-1);g.stroke();}
+    if(eyes==='sad'){g.fillStyle='#3d7a32';g.beginPath();g.moveTo(exx-r-1,eyy-r);g.lineTo(exx+r+1,eyy-r);g.lineTo(exx+r+1,eyy-7);g.lineTo(exx-r-1,eyy+1);g.closePath();g.fill();
+      g.strokeStyle='#1c1c0c';g.lineWidth=2.4;g.beginPath();g.moveTo(exx-r,eyy+1);g.lineTo(exx+r,eyy-7);g.stroke();}}
+  // brow ridge for mood
+  if(eyes==='sly'||eyes==='greedy'){g.strokeStyle='#1f4a1a';g.lineWidth=3;g.beginPath();g.moveTo(exx-14,eyy-16);g.lineTo(exx+14,eyy-10);g.stroke();}
+  g.restore();
+}
+function rnd2(i){const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x);}
+
+// ---- thought cloud with contents ----
+function drawThought(g,x,y,w,h,k,tx,ty,content,t){
+  if(k<=0)return;g.save();g.globalAlpha=sm(k);
+  for(let i=0;i<3;i++){const u=(i+1)/4,bx=lerp(tx,x,u*.8),by=lerp(ty,y+h*.4,u*.8);g.beginPath();g.arc(bx,by,4+i*3,0,7);fs(g,'#ffffff','rgba(60,60,80,.6)',1.5);}
+  g.beginPath();const n=10;for(let i=0;i<n;i++){const a=i/n*6.28,px=x+Math.cos(a)*w*.5,py=y+Math.sin(a)*h*.5;g.moveTo(px+h*.22,py);g.arc(px,py,h*.22,0,7);}
+  g.fillStyle='#ffffff';g.fill();g.strokeStyle='rgba(60,60,80,.55)';g.lineWidth=2;g.stroke();
+  g.beginPath();g.ellipse(x,y,w*.5,h*.5,0,0,7);g.fillStyle='#ffffff';g.fill();
+  g.save();g.translate(x,y);content(g,t);g.restore();
+  g.restore();
+}
+function plateWith(g,t,fn){ // dinner plate + fork & knife
+  g.beginPath();g.ellipse(0,18,70,18,0,0,7);fs(g,'#f2f2f2','rgba(80,80,90,.7)',2);g.beginPath();g.ellipse(0,16,50,11,0,0,7);g.strokeStyle='rgba(120,120,140,.5)';g.lineWidth=1.5;g.stroke();
+  g.strokeStyle='#8a8f98';g.lineWidth=4;g.lineCap='round';g.beginPath();g.moveTo(-88,30);g.lineTo(-88,-20);g.stroke();for(let i=-1;i<=1;i++){g.lineWidth=2;g.beginPath();g.moveTo(-88+i*5,-20);g.lineTo(-88+i*5,-34);g.stroke();}
+  g.lineWidth=5;g.beginPath();g.moveTo(88,30);g.lineTo(88,-10);g.stroke();g.beginPath();g.moveTo(88,-10);g.quadraticCurveTo(98,-24,88,-38);g.lineTo(88,-10);g.fillStyle='#b8bec8';g.fill();
+  fn(g,t);
+}
+
+// ---- splash / ripples ----
+function splash(g,x,t,t0,size){const k=t-t0;if(k<0||k>1.6)return;
+  for(let i=0;i<3;i++){const r=(k*90+i*25)*size,a=clamp(1-k/1.6)*(1-i*.25);g.strokeStyle=`rgba(255,255,255,${a*.8})`;g.lineWidth=2.5;g.beginPath();g.ellipse(x,WY+4,r*1.6,r*.25,0,0,7);g.stroke();}
+  if(k<1)for(let i=0;i<16;i++){const vx=(rnd2(i+t0)-.5)*260*size,vy=-(140+rnd2(i*3+t0)*220)*size,px=x+vx*k,py=WY+vy*k+420*k*k;if(py>WY+6)continue;
+    g.fillStyle=`rgba(225,245,255,${1-k})`;g.beginPath();g.arc(px,py,4+rnd2(i*7)*5,0,7);g.fill();}
+}
+
+// ---------------- story timeline ----------------
+const SRT=`1
+00:00:01,000 --> 00:00:04,500
+The Clever Monkey and the Greedy Crocodile
+A Jungle Adventure Full of Tricks and Laughter
+
+2
+00:00:05,000 --> 00:00:09,000
+Once upon a time, there lived a clever little monkey
+in a beautiful tropical jungle.
+
+3
+00:00:09,500 --> 00:00:14,000
+One day, the monkey wanted to cross a wide river.
+But the river was very deep, and the water flowed strongly.
+
+4
+00:00:14,200 --> 00:00:17,500
+There were no trees nearby,
+so he couldn't jump from one tree to another.
+
+5
+00:00:18,000 --> 00:00:22,000
+The monkey sat on the riverbank, scratching his head
+and wondering how he could get to the other side.
+
+6
+00:00:22,300 --> 00:00:24,500
+"Oh dear! How am I going to cross this river?"
+
+7
+00:00:25,000 --> 00:00:27,000
+Suddenly, a crocodile appeared from the water.
+
+8
+00:00:27,500 --> 00:00:30,500
+"Hello, my little friend!
+Why are you sitting here looking so sad?"
+
+9
+00:00:30,800 --> 00:00:32,800
+"I want to cross the river, but I don't know how!"
+
+10
+00:00:33,200 --> 00:00:36,500
+"That's easy! Climb onto my back.
+I'll carry you safely across the river."
+
+11
+00:00:36,800 --> 00:00:39,500
+The monkey was delighted.
+"Really? That's very kind of you!"
+
+12
+00:00:40,000 --> 00:00:43,500
+The monkey happily climbed onto the crocodile's back,
+and they started swimming across the river.
+
+13
+00:00:43,800 --> 00:00:45,500
+But the crocodile had a secret plan.
+
+14
+00:00:46,000 --> 00:00:50,000
+"Hehehe! Once we reach the middle of the river,
+I'll dive underwater and make this little monkey my dinner!"
+
+15
+00:00:50,500 --> 00:00:53,000
+Everything seemed fine as they swam through the water.
+
+16
+00:00:53,500 --> 00:00:56,500
+But when they reached the middle of the river,
+the crocodile suddenly began to dive underwater.
+
+17
+00:00:57,000 --> 00:00:59,000
+"Hey! Hey! What are you doing?" shouted the monkey.
+
+18
+00:00:59,500 --> 00:01:03,000
+The crocodile didn't say a word.
+Instead, he thought: "You fool! Don't you know I'm going to eat you?"
+
+19
+00:01:03,500 --> 00:01:07,500
+The monkey was terrified. He suddenly realized the danger
+and knew he had to think quickly to save himself.
+
+20
+00:01:08,000 --> 00:01:10,000
+Suddenly, an idea came to his mind.
+
+21
+00:01:10,500 --> 00:01:12,800
+"Wait! Wait! My friend!"
+
+23
+00:01:15,200 --> 00:01:19,500
+"Oh, I almost forgot! I want to bring my auntie with me.
+She's waiting on the riverbank."
+
+24
+00:01:19,800 --> 00:01:23,800
+"She's very fat and much bigger than me.
+She's too heavy to walk, so she needs a ride."
+
+25
+00:01:24,200 --> 00:01:27,000
+"I'm just a skinny little monkey,
+but my auntie is a much bigger meal!"
+
+26
+00:01:27,500 --> 00:01:31,000
+The greedy crocodile started thinking:
+"Hmm! If I take him back, I can get two monkeys instead of one!"
+
+27
+00:01:31,500 --> 00:01:34,500
+"And if his auntie is really that fat,
+I'll have a much bigger meal!"
+
+28
+00:01:35,000 --> 00:01:37,800
+"That's a wonderful idea!
+Let's go back and get your auntie!"
+
+29
+00:01:38,200 --> 00:01:41,200
+The crocodile quickly turned around
+and swam back towards the riverbank.
+
+30
+00:01:41,700 --> 00:01:46,000
+As soon as they reached the shore, the clever monkey jumped off
+and quickly climbed up a nearby tree.
+
+31
+00:01:46,500 --> 00:01:49,500
+Then he looked down at the crocodile
+and burst out laughing.
+
+32
+00:01:50,000 --> 00:01:54,500
+"Ha! Ha! Ha! Do you really think I'm a fool?
+You tried to trick me, but I'm much cleverer than you!"
+
+33
+00:01:55,000 --> 00:01:57,000
+The crocodile looked up in surprise.
+"Hey! Come back! Where is your auntie?"
+
+34
+00:01:57,500 --> 00:02:00,000
+The monkey laughed even louder.
+"My auntie? She's safe at home!"
+
+35
+00:02:00,300 --> 00:02:02,500
+"And you can forget about your dinner!"
+
+36
+00:02:03,000 --> 00:02:05,500
+The crocodile floated sadly in the river,
+with an empty stomach.
+
+37
+00:02:06,000 --> 00:02:09,000
+The monkey sat comfortably on a tree branch,
+enjoying his victory.
+
+38
+00:02:09,500 --> 00:02:12,000
+"Next time, don't underestimate a clever monkey!"
+
+39
+00:02:12,500 --> 00:02:16,000
+And that's how the clever little monkey
+escaped from the greedy crocodile.
+
+40
+00:02:16,500 --> 00:02:22,000
+The Moral of the Story:
+Intelligence is more powerful than strength.
+A clever mind can save you from any danger.`;
+const cues=SRT.trim().split(/\n\s*\n/).map(b=>{const L=b.split('\n');const tm=L[1].match(/(\d+):(\d+):(\d+),(\d+)\s*-->\s*(\d+):(\d+):(\d+),(\d+)/);
+  const ts=(h,m,s,ms)=>(+h)*3600+(+m)*60+(+s)+(+ms)/1000;return {n:+L[0],a:ts(tm[1],tm[2],tm[3],tm[4]),b:ts(tm[5],tm[6],tm[7],tm[8]),text:L.slice(2)};});
+const cueAt=t=>cues.find(c=>t>=c.a&&t<c.b);
+
+// --- who speaks when (for mouth animation) ---
+// exact speaking windows from the voice track (in story time)
+const MONKEY_TALK=[[22.369, 24.257], [30.864, 32.577], [38.116, 39.281], [57.055, 57.9], [70.58, 71.711], [75.271, 79.252], [79.868, 83.562], [84.259, 86.795], [110.069, 114.259], [118.793, 119.81], [120.38, 121.809], [129.571, 131.753]];
+const CROC_TALK=[[27.554, 30.31], [33.257, 36.3], [46.053, 49.815], [61.237, 62.841], [88.629, 90.852], [91.556, 94.304], [95.054, 97.609], [115.882, 116.886]];
+const isOn=(t,list)=>list.some(([a,b])=>t>=a&&t<b);
+
+// --- crocodile position over time ---
+const MIDX=1960, NEARX=900;
+function crocAt(t){
+  const c={x:NEARX+40,y:WY+60,s:1,f:-1,tail:t*3,mouth:0,eyes:'normal',look:[1,0],paddle:1};
+  if(t<25){c.y=WY+140;return c;}
+  if(t<27){const k=sm(seg(t,25,26.2));c.y=lerp(WY+130,WY-8,k);c.eyes='normal';return c;}            // rises from the water
+  c.y=WY-8+Math.sin(t*1.6)*3;
+  if(t<39.6){c.x=NEARX+40;c.f=-1;c.eyes=inW(t,27.5,30.5)?'happy':'normal';if(inW(t,33.2,36.5))c.eyes='sly';return c;}
+  if(t<40.3){const k=sm(seg(t,39.6,40.3));c.f=Math.cos(k*Math.PI)*-1;c.x=lerp(NEARX+40,NEARX,k);return c;}  // turns to face the river
+  c.f=1;
+  if(t<41.6){c.x=NEARX;return c;}
+  if(t<53.5){const k=seg(t,41.6,53.5);c.x=lerp(NEARX,MIDX,sm(k)*.15+k*.85);c.tail=t*7;c.eyes=t>43.8&&t<50?'sly':'normal';c.look=[1,-.3];return c;}
+  c.x=MIDX;
+  if(t<70.5){const k=sm(seg(t,53.6,56.5));c.y+=k*58;c.eyes=t<59.5?'normal':'sly';if(t>59.5&&t<63)c.mouth=.15;return c;}  // dives
+  if(t<72.5){c.y+=58*(1-sm(seg(t,70.5,72)));c.eyes='wide';return c;}                                  // stops and rises
+  if(t<98.2){c.eyes=inW(t,87.5,94.5)?'greedy':inW(t,95,97.8)?'happy':'normal';if(inW(t,88.5,94.5)){c.tongue=true;c.mouth=.35;}
+    if(inW(t,75.2,87))c.look=[-1,-.5];return c;}
+  if(t<99){const k=sm(seg(t,98.2,99));c.f=Math.cos(k*Math.PI);return c;}                               // turns around
+  c.f=-1;
+  if(t<101.5){const k=sm(seg(t,99,101.5));c.x=lerp(MIDX,NEARX+70,k);c.tail=t*12;c.eyes='greedy';return c;}
+  c.x=NEARX+70;c.look=[-1,-.8];
+  if(t<115)c.eyes='normal';
+  else if(t<117.2)c.eyes='wide';
+  else if(t<123)c.eyes='normal';
+  else {c.eyes='sad';c.y+=sm(seg(t,123,125))*14;c.paddle=.2;c.look=[-1,0];}
+  return c;
+}
+function crocBack(c){ // world point on the croc's back where the monkey sits
+  return [c.x+(c.f>=0?1:-1)*(-10)*c.s*Math.abs(c.f), c.y-46*c.s];
+}
+
+// --- monkey over time ---
+const WALK_V=190, WALK_HZ=3.2;
+function monkeyAt(t,croc){
+  const m={x:0,y:GY,f:1,s:1,pose:POSE.stand(),face:{mouth:'smile',eyes:'open',brow:'normal',look:[1,0]},rot:0};
+  const talk=talkAmt(t,isOn(t,MONKEY_TALK));m.face.talk=talk;if(talk>0)m.face.mouth='talk';
+  if(t<8.9){ // swinging on a vine
+    const a=Math.sin(t*1.9)*.55,ex=VINE.x+Math.sin(a)*VINE.len,ey=VINE.y+Math.cos(a)*VINE.len;
+    m.vine=[ex,ey];m.x=ex;m.y=ey+108;m.rot=-a*.6;
+    m.pose={hipY:-34,fN:[10,-4],fF:[-4,-2],hN:[2,-108],hF:[-4,-106],tail:Math.sin(t*3)};m.face.eyes='happy';m.face.mouth='laugh';m.face.talk=.3;
+    return m;}
+  if(t<9.5){ // let go and land
+    const a=Math.sin(8.9*1.9)*.55,sx=VINE.x+Math.sin(a)*VINE.len,sy=VINE.y+Math.cos(a)*VINE.len+108,k=seg(t,8.9,9.5);
+    m.x=lerp(sx,-330,k);m.y=lerp(sy,GY,k)-Math.sin(k*Math.PI)*60;m.pose={hipY:-34,fN:[12,-6],fF:[-2,-4],hN:[16,-80],hF:[-12,-80],tail:1};m.face.mouth='laugh';m.face.eyes='happy';return m;}
+  if(t<13.5){ // walk to the river bank (feet planted)
+    m.x=-330+(t-9.5)*WALK_V;if(m.x>BANK_X){m.x=BANK_X;}m.pose=walkPose(t,WALK_V,WALK_HZ);if(m.x>=BANK_X)m.pose=POSE.stand();return m;}
+  m.x=BANK_X;
+  if(t<17.8){m.pose=POSE.stand();m.face.look=[1,.3];m.face.mouth='worried';m.face.brow='worried';m.pose.hN=[14,-60];return m;}   // stares at the river
+  if(t<25){m.pose=POSE.sit();m.face.brow='worried';m.face.mouth=talk?'talk':'worried';m.face.look=[1,.2];
+    if(t<22.2){const sc=Math.sin(t*14)*4;m.pose.hN=[-4+sc,-104];}                // scratching his head
+    else{m.pose.hN=[26,-58];m.pose.hF=[18,-56];}                                   // hands on cheeks
+    return m;}
+  if(t<27.3){const k=seg(t,25,25.4);m.pose=POSE.stand();m.y=GY-Math.sin(k*Math.PI)*30;m.face.eyes='wide';m.face.mouth='shout';m.face.brow='raised';m.pose.hN=[10,-90];m.pose.hF=[-6,-88];return m;}
+  if(t<36.8){m.pose=POSE.stand();m.face.look=[1,.2];m.face.brow=t<32.8?'worried':'raised';if(!talk)m.face.mouth=t<32.8?'worried':'smile';
+    if(talk){m.pose.hN=[26,-62+Math.sin(t*6)*6];}return m;}
+  if(t<40.2){m.pose=POSE.stand();const hop=Math.abs(Math.sin(t*7))*16;m.y=GY-hop;m.face.eyes='happy';m.face.mouth=talk?'talk':'laugh';m.face.talk=talk||.4;
+    const cl=Math.abs(Math.sin(t*9))*8;m.pose.hN=[20-cl,-62];m.pose.hF=[12+cl,-62];return m;}
+  const back=crocBack(croc);
+  if(t<41.2){const k=seg(t,40.2,41.2),sx=BANK_X,sy=GY;m.x=lerp(sx,back[0],sm(k));m.y=lerp(sy,back[1],k)-Math.sin(k*Math.PI)*90;
+    m.pose={hipY:-30,fN:[14,-10],fF:[2,-8],hN:[18,-86],hF:[-8,-86],tail:1};m.face.eyes='happy';m.face.mouth='laugh';return m;}
+  if(t<101.7){ // riding on the crocodile
+    m.x=back[0];m.y=back[1];m.f=croc.f>=0?1:-1;m.pose=POSE.ride();m.pose.tail=Math.sin(t*2);
+    if(t<53.5){m.face.eyes=t<50.5?'open':'happy';m.face.mouth='smile';if(t>50.5){m.pose.hN=[46,-58+Math.sin(t*8)*8];}m.face.look=[1,-.2];}
+    else if(t<57){m.face.look=[0,1];m.face.brow='raised';m.face.eyes='wide';m.face.mouth='worried';}
+    else if(t<59){m.face.eyes='wide';m.face.brow='raised';m.face.mouth='shout';m.pose.hN=[46,-50];m.pose.hF=[-34,-54];}
+    else if(t<63.5){m.face.eyes='wide';m.face.brow='worried';m.face.mouth='worried';m.face.look=[0,1];}
+    else if(t<68){m.face.eyes='wide';m.face.brow='worried';m.face.mouth='shout';m.face.talk=.2;m.x+=Math.sin(t*60)*1.5;m.pose.hN=[-4,-86];m.pose.hF=[-18,-80];m.sweat=true;}
+    else if(t<70.5){m.face.eyes='open';m.face.brow='raised';m.face.mouth='grin';m.face.talk=.3;m.pose.hN=[46,-62];m.face.point=true;m.bulb=sm(seg(t,68,68.5));}
+    else if(t<75.2){m.face.brow='raised';m.pose.hN=[32,-44+Math.sin(t*5)*6];m.face.look=[1,.3];}
+    else if(t<87){m.face.brow='raised';m.face.look=[1,.3];
+      if(t>79.8&&t<83.8){const w=Math.abs(Math.sin(t*2))*10;m.pose.hN=[38+w,-40];m.pose.hF=[-30-w,-40];}else m.pose.hN=[32,-44+Math.sin(t*5)*6];}
+    else if(t<98.2){m.face.mouth='grin';m.face.eyes=t<95?'sly':'happy';m.face.look=[1,.3];}
+    else{m.face.mouth='smile';m.face.eyes='sly';m.pose.hN=[30,-36];}
+    return m;}
+  // jump to the shore, run to the tree, climb up
+  if(t<103){const k=seg(t,101.7,103);m.f=-1;m.x=lerp(back[0],BANK_X,sm(k));m.y=lerp(back[1],GY,k)-Math.sin(k*Math.PI)*110;
+    m.pose={hipY:-30,fN:[14,-10],fF:[2,-8],hN:[18,-86],hF:[-8,-86],tail:1};m.face.eyes='happy';m.face.mouth='laugh';return m;}
+  const RUN_V=240,RUN_HZ=3.8,treeFoot=TREE_X+34;
+  if(t<104.2){m.f=-1;m.x=BANK_X-(t-103)*RUN_V;if(m.x<treeFoot)m.x=treeFoot;m.pose=walkPose(t,RUN_V,RUN_HZ);m.face.mouth='grin';return m;}
+  if(t<105.8){const k=seg(t,104.2,105.8);m.f=-1;m.x=treeFoot;m.y=lerp(GY,BRANCH_Y+20,sm(k));       // climbing the trunk
+    const c=Math.sin(t*14);m.pose={hipY:-34,fN:[-14,-8+c*8],fF:[-12,-16-c*8],hN:[-16,-110-c*10],hF:[-14,-98+c*10],tail:Math.sin(t*5)};m.face.look=[-1,-1];return m;}
+  if(t<106.4){const k=seg(t,105.8,106.4);m.f=1;m.x=lerp(treeFoot,SEAT_X,sm(k));m.y=BRANCH_Y-12-Math.sin(k*Math.PI)*30;m.pose=POSE.sitBranch();m.face.mouth='grin';return m;}
+  // on the branch
+  m.x=SEAT_X;m.y=BRANCH_Y-12;m.f=1;m.pose=POSE.sitBranch();m.face.look=[1,1];
+  const legSwing=Math.sin(t*3)*6;m.pose.fN=[14+legSwing,28];m.pose.fF=[8-legSwing,30];
+  if(t<110){m.face.eyes=t<107.5?'open':'happy';m.face.mouth=t<107.5?'grin':'laugh';m.face.talk=t<107.5?0:.5+.5*Math.abs(Math.sin(t*9));m.y-=t>107.5?Math.abs(Math.sin(t*9))*5:0;m.pose.hN=[16,-34];m.pose.hF=[4,-32];}
+  else if(t<114.5){m.face.mouth='laugh';m.face.eyes=Math.sin(t*2)>0?'happy':'open';m.pose.hN=[40,-30];m.face.point=true;}
+  else if(t<117.3){m.face.mouth='grin';m.face.eyes='sly';}
+  else if(t<123){m.face.mouth='laugh';m.face.eyes='happy';m.face.talk=Math.max(m.face.talk,.5+.5*Math.abs(Math.sin(t*10)));m.y-=Math.abs(Math.sin(t*10))*6;m.pose.hN=[14,-30];m.pose.hF=[2,-28];}
+  else if(t<126){m.face.mouth='smile';m.face.eyes='open';m.face.look=[1,1];}
+  else{m.rot=-.12;m.face.eyes=t<129.5?'happy':'open';m.face.mouth=talk?'talk':'smile';m.banana=true;m.pose.hN=[20,-50+Math.sin(t*1.5)*6];m.pose.hF=[-14,-20];m.face.look=[1,.6];}
+  return m;
+}
+
+// --- camera: a film-style SHOT LIST (story time). Each shot eases from A to B; shots change with hard cuts.
+// Each end is {x,y,z,r} or a function of (croc, monkey). r = camera roll (dutch angle) in radians.
+const MHEAD=(c,m)=>[m.x+8*(m.f||1),m.y-(m.pose.hipY>-20?70:92)], CHEAD=c=>[c.x+(c.f>=0?1:-1)*215*c.s,c.y-36], CEYE=c=>[c.x+(c.f>=0?1:-1)*150*c.s,c.y-60];
+const at=(f,dx=0,dy=0,z=1,r=0)=>(c,m)=>{const p=f(c,m);return {x:p[0]+dx,y:p[1]+dy,z,r};};
+const mid=(dx,dy,z,r=0)=>(c,m)=>{const a=MHEAD(c,m),b=CHEAD(c);return {x:(a[0]+b[0])/2+dx,y:(a[1]+b[1])/2+dy,z,r};};
+const fix=(x,y,z,r=0)=>()=>({x,y,z,r});
+const SHOTS=[
+ [0,   4.9,  fix(-600,330,1.12), fix(-520,340,1.2)],                                   // title: slow drift through the jungle
+ [4.9, 8.9,  at(m=>[0,0]), null],                                                      // (replaced below) tracking the swing
+ [8.9, 9.5,  fix(-420,430,1.25), fix(-380,450,1.3)],                                   // landing
+ [9.5, 13.4, at((c,m)=>[m.x,m.y],90,-60,1.55), at((c,m)=>[m.x,m.y],90,-60,1.55)],     // LOW-ANGLE tracking shot of the walk
+ [13.4,15.1, at((c,m)=>[m.x,m.y],330,-80,1.9), at((c,m)=>[m.x,m.y],380,-70,1.8)],     // OVER-THE-SHOULDER: monkey looks at the river
+ [15.1,17.6, fix(1500,470,.5), fix(2100,470,.5)],                                      // WIDE establishing pan across the river
+ [17.6,22.2, at(MHEAD,30,30,1.5), at(MHEAD,20,25,1.9)],                                 // slow push-in on the sitting monkey
+ [22.2,24.6, at(MHEAD,20,10,2.6), at(MHEAD,20,10,2.75)],                               // CLOSE-UP: "Oh dear!"
+ [24.6,25.7, fix(780,500,1.0), fix(800,500,1.05)],                                     // cut wide: something stirs in the water
+ [25.7,27.3, at(CHEAD,40,10,1.8), at(CHEAD,30,0,2.0)],                                 // LOW-ANGLE reveal of the crocodile
+ [27.3,30.6, at(CHEAD,30,-10,2.0), at(CHEAD,30,-10,2.15)],                             // shot: croc speaks
+ [30.6,33.0, at(MHEAD,30,10,2.2), at(MHEAD,30,10,2.3)],                                // reverse shot: monkey answers
+ [33.0,36.6, at(CHEAD,30,-10,2.0), at(CHEAD,30,-10,2.15)],                             // shot: croc offers a ride
+ [36.6,40.0, mid(0,40,1.4), mid(0,40,1.45)],                                           // two-shot: the delighted monkey
+ [40.0,41.6, fix(760,470,1.1), fix(800,470,1.1)],                                      // wide: the jump
+ [41.6,43.6, (c,m)=>({x:c.x+60,y:500,z:1.25,r:0}), (c,m)=>({x:c.x+80,y:500,z:1.25,r:0})],  // side tracking
+ [43.6,45.7, at(CEYE,0,4,3.2), at(CEYE,0,4,3.6)],                                      // EXTREME CLOSE-UP: the sly eye
+ [45.7,50.2, (c,m)=>({x:c.x+150,y:420,z:1.3,r:0}), (c,m)=>({x:c.x+150,y:420,z:1.3,r:0})],  // two-shot riding + thought cloud
+ [50.2,53.5, (c,m)=>({x:c.x-60,y:440,z:.8,r:0}), (c,m)=>({x:c.x+40,y:450,z:.85,r:0})],     // HIGH WIDE: all seems fine
+ [53.5,56.1, (c,m)=>({x:c.x+40,y:WY+150,z:1.35,r:0}), (c,m)=>({x:c.x+40,y:WY+175,z:1.45,r:0})], // UNDERWATER angle: the dive
+ [56.1,59.2, at(MHEAD,10,10,1.6,-.05), at(MHEAD,10,10,2.5,-.07)],                      // CRASH ZOOM + dutch tilt: "Hey! Hey!"
+ [59.2,63.3, (c,m)=>({x:CHEAD(c)[0]+40,y:CHEAD(c)[1]-80,z:1.55,r:.04}), (c,m)=>({x:CHEAD(c)[0]+40,y:CHEAD(c)[1]-80,z:1.65,r:.05})], // croc's dark thought
+ [63.3,67.8, at(MHEAD,10,10,2.3,-.08), at(MHEAD,10,10,2.45,-.1)],                      // terrified: tilted close-up (+shake)
+ [67.8,70.4, at(MHEAD,10,-40,2.0), at(MHEAD,10,-40,2.1)],                              // the idea!
+ [70.4,75.0, mid(0,10,1.35), mid(0,10,1.4)],                                           // two-shot: "Wait! Wait!"
+ [75.0,87.2, (c,m)=>({x:MHEAD(c,m)[0]+40,y:MHEAD(c,m)[1]-90,z:1.3,r:0}), (c,m)=>({x:MHEAD(c,m)[0]+40,y:MHEAD(c,m)[1]-90,z:1.45,r:0})], // auntie story
+ [87.2,95.0, (c,m)=>({x:CHEAD(c)[0]+40,y:CHEAD(c)[1]-80,z:1.45,r:0}), (c,m)=>({x:CHEAD(c)[0]+40,y:CHEAD(c)[1]-80,z:1.6,r:0})], // greedy croc
+ [95.0,98.2, at(CHEAD,20,-10,2.1), at(CHEAD,20,-10,2.2)],                              // close-up: "That's a wonderful idea!"
+ [98.2,101.6,(c,m)=>({x:c.x-(c.f>=0?-120:120),y:470,z:1.15,r:.03}), (c,m)=>({x:c.x-120,y:470,z:1.15,r:.03})], // fast tracking back
+ [101.6,103.1,fix(560,440,1.0), fix(520,440,1.0)],                                     // wide: the leap to shore
+ [103.1,106.4,at((c,m)=>[m.x,m.y],-20,-40,1.6), at((c,m)=>[m.x,m.y],60,-10,1.5)],     // LOW-ANGLE: run and climb
+ [106.4,110.0,fix(560,450,1.35), fix(600,450,1.4)],                                    // two-shot from the tree
+ [110.0,114.6,at(MHEAD,20,20,2.1), at(MHEAD,20,20,2.2)],                               // close-up: laughing monkey
+ [114.6,117.4,at(CHEAD,40,-30,1.9), at(CHEAD,40,-30,2.0)],                             // LOW-ANGLE close: surprised croc
+ [117.4,123.0,fix(600,440,1.25), fix(620,440,1.3)],                                    // two-shot: laughing even louder
+ [123.0,125.8,at(CHEAD,-40,20,1.8), at(CHEAD,-40,20,1.9)],                             // sad croc
+ [125.8,132.4,at(MHEAD,10,20,1.8), at(MHEAD,10,20,1.9)],                               // the winner on his branch
+ [132.4,END, fix(560,420,1.3), fix(1000,430,.62)],                                     // CRANE OUT to the wide ending
+];
+function camAt(t,croc,monk){
+  let sh=SHOTS[SHOTS.length-1];for(const S of SHOTS)if(t>=S[0]&&t<S[1]){sh=S;break;}
+  if(sh[0]===4.9){ // tracking the vine swing
+    return {x:monk.x+40,y:monk.y-80,z:1.55,r:-(monk.rot||0)*.25};}
+  const k=sm(seg(t,sh[0],sh[1])),A=sh[2](croc,monk),B=(sh[3]||sh[2])(croc,monk);
+  const c={x:lerp(A.x,B.x,k),y:lerp(A.y,B.y,k),z:lerp(A.z,B.z,k),r:lerp(A.r||0,B.r||0,k)};
+  if(sh[0]===56.1){c.z=lerp(A.z,B.z,sm(seg(t,56.1,56.45)));}                 // crash zoom happens fast
+  if(sh[0]===63.3){c.x+=Math.sin(RT*37)*3;c.y+=Math.cos(RT*29)*3;}            // fear shake
+  return c;
+}
+
+// ---------------- render ----------------
+function drawWorld(g,t,cam,croc,monk){
+  // ground (left bank)
+  const bank=(x0,x1,dir)=>{g.beginPath();g.moveTo(x0,GY);g.lineTo(x1,GY);
+    if(dir>0){g.quadraticCurveTo(x1+40,GY+4,x1+70,WY+20);g.lineTo(x1+100,WY+1400);g.lineTo(x0,WY+1400);}
+    else{g.lineTo(x1,WY+1400);g.lineTo(x0-100,WY+1400);g.lineTo(x0-70,WY+20);g.quadraticCurveTo(x0-40,GY+4,x0,GY);}
+    g.closePath();};
+  // river water body
+  g.fillStyle=lin(g,0,WY,0,WY+420,[[0,'#3fa7b8'],[.25,'#2b84a0'],[1,'#123d5e']]);g.fillRect(RIVER_L-200,WY,RIVER_R-RIVER_L+400,1400);
+  // reflections of sky light + flowing streaks (strong current)
+  for(const s of streaks){const x=RIVER_L+mod(s.x-RIVER_L+RT*s.sp,RIVER_R-RIVER_L);const a=.35*(1-(s.y-WY)/320);
+    g.strokeStyle=`rgba(220,250,255,${a})`;g.lineWidth=2;g.beginPath();g.moveTo(x,s.y);g.quadraticCurveTo(x+s.l*.5,s.y-3,x+s.l,s.y);g.stroke();}
+  // lily pads
+  for(const l of lily){g.beginPath();g.ellipse(l.x,l.y+Math.sin(RT+l.x)*1.5,l.r,l.r*.35,0,.3,6.0);g.lineTo(l.x,l.y);g.closePath();fs(g,'#4f9a3a','rgba(20,60,20,.7)',1.4);
+    if(l.fl){g.fillStyle='#ffc2dc';for(let k=0;k<6;k++){const a=k/6*6.28;g.beginPath();g.ellipse(l.x+Math.cos(a)*5,l.y-4+Math.sin(a)*2,5,2.5,a,0,7);g.fill();}g.fillStyle='#ffd23f';g.beginPath();g.arc(l.x,l.y-4,2.5,0,7);g.fill();}}
+  // back-layer jungle props (behind ground)
+  for(const p of props)if(p.layer===0){const w=p.img.width*p.s,h=p.img.height*p.s,x=p.x-w*p.ax;if(x>cam.l+cam.w+50||x+w<cam.l-50)continue;g.drawImage(p.img,x,p.y-h*p.ay,w,h);}
+  // climbing tree
+  g.drawImage(climbTree,TREE_X-CT_OFF.x,GY-CT_OFF.y+20);
+  // the vine for the opening swing
+  if(t<9.4){const [ex,ey]=monk.vine||[VINE.x+Math.sin(Math.sin(8.9*1.9)*.55)*VINE.len,VINE.y+Math.cos(Math.sin(8.9*1.9)*.55)*VINE.len];
+    g.strokeStyle='#3e6a2a';g.lineWidth=5;g.beginPath();g.moveTo(VINE.x,VINE.y-200);g.lineTo(VINE.x,VINE.y);g.quadraticCurveTo((VINE.x+ex)/2+10,(VINE.y+ey)/2,ex,ey);g.stroke();
+    for(let j=1;j<8;j++){const u=j/8,px=lerp(VINE.x,ex,u),py=lerp(VINE.y,ey,u);g.save();g.translate(px,py);g.rotate(j%2?.8:2.4);leafShape(g,12,5);g.fillStyle='#4f8f36';g.fill();g.restore();}}
+  // characters
+  const cr=croc,mk=monk,riding=t>=40.2&&t<101.7;
+  if(cr.y<WY+130){ // wake behind a swimming croc
+    const moving=(t>41.6&&t<53.5)||(t>99&&t<101.5);if(moving){for(let i=0;i<5;i++){const d=(i+1)*40*(cr.f>=0?-1:1);g.strokeStyle=`rgba(255,255,255,${.5-i*.09})`;g.lineWidth=2;g.beginPath();g.ellipse(cr.x+d-((cr.f>=0?1:-1)*150),WY+6,30+i*12,4+i,0,0,7);g.stroke();}}
+    drawCroc(g,cr,RT);}
+  if(riding)drawMonkey(g,mk,RT);   // riding monkey sits in the water with the croc
+  // front water: semi-transparent so the croc's lower body sits *in* the river
+  g.save();g.beginPath();g.moveTo(RIVER_L-60,WY);for(let x=RIVER_L-60;x<=RIVER_R+60;x+=20)g.lineTo(x,WY+Math.sin(x*.03+RT*2.4)*2.5);g.lineTo(RIVER_R+60,WY+1400);g.lineTo(RIVER_L-60,WY+1400);g.closePath();
+  g.fillStyle=lin(g,0,WY,0,WY+200,[[0,'rgba(60,170,190,.42)'],[1,'rgba(20,70,100,.8)']]);g.fill();g.restore();
+  g.strokeStyle='rgba(235,252,255,.85)';g.lineWidth=2.4;g.beginPath();for(let x=RIVER_L-60;x<=RIVER_R+60;x+=20)g[x===RIVER_L-60?'moveTo':'lineTo'](x,WY+Math.sin(x*.03+RT*2.4)*2.5);g.stroke();
+  // banks
+  bank(-2800,RIVER_L-40,1);fs(g,lin(g,0,GY,0,WY+200,[[0,'#7a5a34'],[.15,'#5e4326'],[1,'#3a2a18']]),INK,2.2);
+  bank(RIVER_R+40,4800,-1);fs(g,lin(g,0,GY,0,WY+200,[[0,'#7a5a34'],[.15,'#5e4326'],[1,'#3a2a18']]),INK,2.2);
+  g.fillStyle='#4f9a3a';g.fillRect(-2800,GY-4,RIVER_L-40+2800,12);g.fillRect(RIVER_R+40,GY-4,4800-RIVER_R,12);
+  // pebbles on the slopes
+  for(let i=0;i<20;i++){const x=i<10?RIVER_L-40+rnd2(i)*70:RIVER_R+40-rnd2(i)*70,y=GY+14+rnd2(i+9)*30;g.beginPath();g.ellipse(x,y,6,4,0,0,7);fs(g,'#9a9488','rgba(40,30,20,.6)',1);}
+  // grass tufts + flowers
+  for(const tf of tufts){if(tf.x<cam.l-20||tf.x>cam.l+cam.w+20)continue;const b=Math.sin(RT*2+tf.ph)*2;g.strokeStyle=tf.c;g.lineWidth=2;g.beginPath();g.moveTo(tf.x,GY+4);g.quadraticCurveTo(tf.x+b*.5,GY-tf.h*.5,tf.x+b,GY-tf.h);g.stroke();}
+  for(const f of flowersW){if(f.x<cam.l-20||f.x>cam.l+cam.w+20)continue;g.strokeStyle='#2f6a22';g.lineWidth=1.5;g.beginPath();g.moveTo(f.x,GY+2);g.lineTo(f.x,GY-14);g.stroke();
+    g.fillStyle=f.c;for(let k=0;k<5;k++){const a=k*1.2566;g.beginPath();g.ellipse(f.x+Math.cos(a)*4,GY-14+Math.sin(a)*4,3.5,2.4,a,0,7);g.fill();}g.fillStyle='#f0a830';g.beginPath();g.arc(f.x,GY-14,2,0,7);g.fill();}
+  // reeds at the water's edge
+  for(const r of reeds){const b=Math.sin(RT*1.5+r.ph)*4;g.strokeStyle='#5d8a32';g.lineWidth=2.5;g.beginPath();g.moveTo(r.x,WY+10);g.quadraticCurveTo(r.x+b*.5,WY-r.h*.5,r.x+b,WY-r.h);g.stroke();
+    if(r.h>60){g.beginPath();g.ellipse(r.x+b,WY-r.h+8,3.5,10,0,0,7);fs(g,'#6b4423',null);}}
+  if(!riding)drawMonkey(g,mk,RT);
+  if(mk.sweat){for(let i=0;i<3;i++){const k=mod(RT*1.5+i*.33,1);g.fillStyle=`rgba(150,210,255,${1-k})`;g.beginPath();g.ellipse(mk.x-14+i*14,mk.y-130+k*30,3,5,0,0,7);g.fill();}}
+  // ripples around the croc
+  if(cr.y<WY+60){for(let i=0;i<2;i++){const k=mod(RT*.6+i*.5,1);g.strokeStyle=`rgba(255,255,255,${.6*(1-k)})`;g.lineWidth=2;g.beginPath();g.ellipse(cr.x,WY+4,190*cr.s+k*80,10+k*6,0,0,7);g.stroke();}}
+  // bubbles while diving
+  if(t>54&&t<70.5){for(let i=0;i<8;i++){const k=mod(RT*.8+i/8,1);g.strokeStyle=`rgba(255,255,255,${.8*(1-k)})`;g.lineWidth=1.5;g.beginPath();g.arc(cr.x+(rnd2(i)-.5)*240,WY+60-k*55,3+rnd2(i+3)*4,0,7);g.stroke();}}
+  splash(g,cr.x,t,25,1.2);splash(g,MIDX,t,53.8,.8);splash(g,NEARX,t,41.1,.6);splash(g,NEARX+70,t,101.6,.9);
+  // front-layer plants (in front of characters)
+  for(const p of props)if(p.layer===1){const w=p.img.width*p.s,h=p.img.height*p.s,x=p.x-w*p.ax;if(x>cam.l+cam.w+50||x+w<cam.l-50)continue;g.drawImage(p.img,x,p.y-h*p.ay+20,w,h);}
+  // idea bulb + thought clouds (world space, above heads)
+  if(mk.bulb)drawBulb(g,mk.x+10,mk.y-165,mk.bulb*1.35,t);
+  const mHead=[mk.x+6*(mk.f||1),mk.y-110],cHead=[cr.x+(cr.f>=0?150:-150)*cr.s,cr.y-70*cr.s];
+  // croc's secret dinner plan (46-50) and "You fool!" (59.5-63)
+  const k1=Math.min(seg(t,46,46.5),1-seg(t,49.6,50.1)),k2=Math.min(seg(t,59.5,60),1-seg(t,62.6,63.1));
+  const dinner=(gg,tt)=>plateWith(gg,tt,(g2)=>{g2.save();g2.translate(0,-10);g2.scale(.9,.9);drawMonkeyHead(g2,-8,0,{eyes:'wide',brow:'worried',mouth:'shout',talk:.3},tt,0);g2.restore();});
+  drawThought(g,cHead[0]+60,cHead[1]-130,240,130,Math.max(k1,k2),cHead[0],cHead[1]-20,dinner,t);
+  // auntie (75.5-87)
+  const k3=Math.min(seg(t,75.6,76.2),1-seg(t,86.5,87));
+  drawThought(g,mHead[0]-40,mHead[1]-170,320,210,k3,mHead[0],mHead[1]-30,(gg,tt)=>{gg.save();gg.translate(-14,70);gg.scale(.95,.95);
+    drawMonkey(gg,{x:0,y:0,f:1,s:1,fat:true,bow:true,pose:POSE.sit(),face:{mouth:'smile',eyes:'happy',brow:'normal',look:[1,0]}},tt);gg.restore();},t);
+  // greedy: two monkeys on a big plate (87.5-94.5)
+  const k4=Math.min(seg(t,87.6,88.2),1-seg(t,94,94.5));
+  drawThought(g,cHead[0]+40,cHead[1]-150,300,150,k4,cHead[0],cHead[1]-20,(gg,tt)=>plateWith(gg,tt,(g2)=>{
+    g2.save();g2.translate(-30,0);g2.scale(.55,.55);drawMonkey(g2,{x:0,y:30,f:1,s:1,fat:true,bow:true,pose:POSE.sit(),face:{mouth:'smile',eyes:'happy'}},tt);g2.restore();
+    g2.save();g2.translate(34,4);g2.scale(.45,.45);drawMonkey(g2,{x:0,y:30,f:1,s:1,pose:POSE.sit(),face:{mouth:'smile',eyes:'open'}},tt);g2.restore();
+    g2.fillStyle='#e2456e';g2.font='bold 28px Trebuchet MS';g2.fillText('x2',70,-30);}),t);
+  // sad croc's empty tummy (123-125.5)
+  if(t>123&&t<125.6){g.strokeStyle='rgba(60,40,20,.7)';g.lineWidth=2;for(let i=0;i<3;i++){const y=cr.y-20+i*10,x=cr.x+20;g.beginPath();for(let k=0;k<5;k++)g.lineTo(x+k*8,y+(k%2?4:-4));g.stroke();}}
+}
+
+function drawUnderwaterLight(g,cam){
+  g.save();g.globalCompositeOperation='lighter';
+  for(let i=0;i<9;i++){const x=cam.x-700+i*170+Math.sin(RT*.6+i)*30;g.fillStyle=lin(g,0,WY,0,WY+420,[[0,'rgba(200,240,255,.10)'],[1,'rgba(200,240,255,0)']]);
+    g.beginPath();g.moveTo(x,WY);g.lineTo(x+60,WY);g.lineTo(x+150,WY+420);g.lineTo(x+40,WY+420);g.fill();}
+  g.restore();
+}
+function drawBackground(g,t,cam){
+  g.drawImage(sky,0,0);
+  for(const c of clouds){const x=mod(c.x-cam.x*.03+t*5,W+700)-350;g.drawImage(c.img,x,c.y);}
+  const z1=1+(cam.z-1)*.15,z2=1+(cam.z-1)*.3;
+  const surf=H/2+(WY-cam.y)*cam.z, hz=clamp(surf-620,-420,320);
+  for(const [img,par,z,dy] of [[farHills,.08,z1,hz*.9],[midJungle,.2,z2,hz*.97]]){
+    const sx=mod(cam.x*par,W*2);g.save();g.translate(W/2,H*.62+dy);g.scale(z,z);g.translate(-W/2,-H*.62);g.drawImage(img,-sx,0);g.drawImage(img,W*2-sx,0);g.restore();}
+  // sun rays
+  g.save();g.globalCompositeOperation='lighter';
+  for(let i=0;i<7;i++){const a=Math.PI*.6+i*.12+Math.sin(t*.2+i)*.02,L=1500;
+    g.fillStyle=lin(g,1250,140,1250+Math.cos(a)*L,140+Math.sin(a)*L,[[0,'rgba(255,250,215,.04)'],[1,'rgba(255,250,215,0)']]);
+    g.beginPath();g.moveTo(1250,140);g.lineTo(1250+Math.cos(a-.06)*L,140+Math.sin(a-.06)*L);g.lineTo(1250+Math.cos(a+.06)*L,140+Math.sin(a+.06)*L);g.fill();}
+  g.restore();
+}
+
+function wrapText(g,lines,cx,y,lh){lines.forEach((l,i)=>{g.strokeText(l,cx,y+i*lh);g.fillText(l,cx,y+i*lh);});}
+function drawSubtitles(g,t){
+  const c=cueAt(t);if(!c||c.n===1||c.n===40)return;
+  const fade=Math.min(seg(t,c.a,c.a+.2),1-seg(t,c.b-.2,c.b));
+  g.save();g.globalAlpha=fade;g.font='bold 34px "Trebuchet MS", "Segoe UI", sans-serif';g.textAlign='center';g.textBaseline='middle';
+  const lh=44,n=c.text.length,wmax=Math.max(...c.text.map(l=>g.measureText(l).width));
+  const by=H-40-n*lh;g.fillStyle='rgba(15,20,30,.55)';const bx=W/2-wmax/2-26;
+  g.beginPath();g.roundRect(bx,by-8,wmax+52,n*lh+16,16);g.fill();
+  g.lineWidth=5;g.strokeStyle='rgba(0,0,0,.75)';g.fillStyle='#fff9e6';g.lineJoin='round';
+  wrapText(g,c.text,W/2,by+lh/2,lh);g.restore();
+}
+function drawTitle(g,t){
+  const k=Math.min(seg(t,.6,1.3),1-seg(t,4.4,5));if(k<=0)return;
+  g.save();g.globalAlpha=k;g.fillStyle='rgba(10,25,15,.35)';g.fillRect(0,0,W,H);
+  const s=.9+.1*sm(seg(t,.6,1.6));g.translate(W/2,H*.4);g.scale(s,s);g.textAlign='center';g.textBaseline='middle';
+  g.font='bold 76px "Trebuchet MS", "Comic Sans MS", sans-serif';g.lineJoin='round';
+  const tl=['The Clever Monkey','and the Greedy Crocodile'];
+  tl.forEach((l,i)=>{const y=i*86-40;g.lineWidth=14;g.strokeStyle='#3a1f0c';g.strokeText(l,0,y);g.fillStyle=lin(g,0,y-40,0,y+40,[[0,'#fff3a6'],[.5,'#ffc93f'],[1,'#f08a1c']]);g.fillText(l,0,y);});
+  g.font='italic bold 36px "Trebuchet MS", sans-serif';g.lineWidth=8;g.strokeStyle='#1d3a16';g.fillStyle='#d9ffcc';g.strokeText('A Jungle Adventure Full of Tricks and Laughter',0,130);g.fillText('A Jungle Adventure Full of Tricks and Laughter',0,130);
+  g.restore();
+}
+function drawMoral(g,t){
+  const k=Math.min(seg(t,136.5,137.4),1-seg(t,141.6,142.3));if(k<=0)return;
+  g.save();g.globalAlpha=k;g.fillStyle='rgba(10,20,15,.5)';g.fillRect(0,0,W,H);
+  const pw=1080,ph=380,px=(W-pw)/2,py=(H-ph)/2-30;
+  g.fillStyle=lin(g,0,py,0,py+ph,[[0,'#fff6dc'],[1,'#f1dca8']]);g.strokeStyle='#7a4a22';g.lineWidth=8;g.beginPath();g.roundRect(px,py,pw,ph,30);g.fill();g.stroke();
+  g.strokeStyle='rgba(122,74,34,.4)';g.lineWidth=2;g.beginPath();g.roundRect(px+16,py+16,pw-32,ph-32,22);g.stroke();
+  // corner leaves
+  for(const [x,y,a] of [[px+10,py+10,.6],[px+pw-10,py+10,2.5],[px+10,py+ph-10,-.6],[px+pw-10,py+ph-10,-2.5]]){g.save();g.translate(x,y);g.rotate(a);for(let i=-1;i<=1;i++){g.save();g.rotate(i*.5);leafShape(g,60,16);fs(g,'#56a03c','rgba(25,60,20,.8)',1.6);g.restore();}g.restore();}
+  g.textAlign='center';g.textBaseline='middle';g.fillStyle='#7a2e0c';g.font='bold 54px "Trebuchet MS", sans-serif';g.fillText('The Moral of the Story',W/2,py+80);
+  g.fillStyle='#3a2410';g.font='bold 38px "Trebuchet MS", sans-serif';g.fillText('Intelligence is more powerful than strength.',W/2,py+185);
+  g.font='italic 36px "Trebuchet MS", sans-serif';g.fillText('A clever mind can save you from any danger.',W/2,py+250);
+  g.restore();
+}
+
+function renderAt(T){
+  RT=T;const t=storyTime(T);
+  const croc=crocAt(t),monk=monkeyAt(t,croc),cam=camAt(t,croc,monk);
+  cam.w=W/cam.z*1.4;cam.l=cam.x-cam.w/2;
+  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(scale,0,0,scale,ox,oy);
+  ctx.save();if(cam.r){ctx.translate(W/2,H/2);ctx.rotate(cam.r);const os=1+Math.abs(cam.r)*1.25;ctx.scale(os,os);ctx.translate(-W/2,-H/2);}
+  drawBackground(ctx,RT,cam);
+  ctx.save();ctx.translate(W/2,H/2);ctx.scale(cam.z,cam.z);ctx.translate(-cam.x,-cam.y);
+  drawWorld(ctx,t,cam,croc,monk);
+  if(cam.y>WY+60)drawUnderwaterLight(ctx,cam);
+  ctx.restore();ctx.restore();
+  // warm grade, sunset glow at the end, vignette
+  ctx.save();ctx.globalCompositeOperation='soft-light';ctx.fillStyle=`rgba(255,${200-60*sm(seg(t,132.5,135))},${130-60*sm(seg(t,132.5,135))},${.22+.25*sm(seg(t,132.5,135))})`;ctx.fillRect(0,0,W,H);ctx.restore();
+  ctx.fillStyle=rad(ctx,W/2,H*.5,H*1.05,[[0,'rgba(0,0,0,0)'],[.6,'rgba(0,0,0,0)'],[1,'rgba(10,15,10,.45)']]);ctx.fillRect(0,0,W,H);
+  drawTitle(ctx,t);drawMoral(ctx,t);drawSubtitles(ctx,t);
+  // fade in / out
+  const fo=Math.max(1-seg(T,0,.8),seg(T,TOTAL-.7,TOTAL));if(fo>0){ctx.fillStyle=`rgba(0,0,0,${fo})`;ctx.fillRect(0,0,W,H);}
+}
+window.renderAt=renderAt;
+
+// live playback (loops); frozen-time rendering overrides performance.now
+const t0=performance.now();
+function frame(now){renderAt(((now-t0)/1000)%TOTAL);requestAnimationFrame(frame);}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
