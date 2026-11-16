@@ -8,5 +8,7 @@ const load = (src) => new Promise((ok, no) => { const s = document.createElement
 await load('lib/stage.js'); await load('lib/sound.js'); await load('style.js');
 const style = STYLES[STYLES.length - 1];
 const S = await K.run(document.getElementById("c"), style, { samples: +(new URLSearchParams(location.search).get("n") || 4), width: 1080, height: 1920 });
+const q = new URLSearchParams(location.search);
+if (q.get('shadow')) { const k = +q.get('shadow'); S.scene.traverse((o) => { if (o.isLight && o.shadow && o.castShadow) o.shadow.mapSize.setScalar(Math.max(512, o.shadow.mapSize.x * k)); }); }   // cheaper shadows for long software renders
 window.S = S; window.style = style; window.DURATION = style.duration; window.seek = (t, n) => S.seek(t, n); window.READY = true;
 </script></body></html>

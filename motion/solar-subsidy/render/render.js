@@ -10,7 +10,7 @@ fs.mkdirSync(OUT, { recursive: true });
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await b.newPage({ viewport: { width: 1080, height: 1920 } });
   p.on('pageerror', (e) => console.log('pageerror:', e.message));
-  await p.goto(`${URL}?n=${samples}`);
+  await p.goto(`${URL}?n=${samples}&shadow=${process.env.SHADOW || 0.5}`);
   await p.waitForFunction(() => window.READY, null, { timeout: 300000 });
   const D = await p.evaluate(() => window.DURATION), N = Math.round(D * FPS), chunks = Math.ceil(N / CHUNK);
   for (let c = worker; c < chunks; c += workers) {
