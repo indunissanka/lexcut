@@ -63,18 +63,18 @@
 
   // Labels, in story order. `at` = draws in, `out` = leaves. `off` = label position in px from its anchor point.
   const LABELS = [
-    { key: 'book', name: 'BUDGET 2027', note: 'new subsidy proposal', at: B.budget.w.budget - 0.15, out: B.rooftop.s + 1.2, off: [150, -170] },
-    { key: 'parliament', name: 'PARLIAMENT', note: 'proposal presented', at: B.budget.w.parliament - 0.15, out: B.rooftop.s + 1.2, off: [-130, -230] },
-    { key: 'roof', name: 'NEW ROOFTOP SOLAR', note: 'households qualify', at: B.rooftop.w.rooftop - 0.1, out: B.battery.s + 0.4, off: [-360, -170] },
-    { key: 'rack', name: 'WITH A BATTERY', note: 'new solar + storage', at: B.battery.w.battery - 0.05, out: B.perkwh.s - 0.3, off: [170, -230], big: { text: 'UP TO Rs 250,000', at: B.battery.w.amount - 0.1 } },
-    { key: 'home', name: 'MAX PER HOME', note: 'Rs 250,000', at: B.perhome.w.home - 0.1, out: B.fund.s + 0.3, off: [-430, -190] },
-    { key: 'fund', name: 'Rs 3.5 BILLION', note: 'set aside for the scheme', at: B.fund.w.fund - 0.15, out: B.levy.s + 1.5, off: [120, -200] },
-    { key: 'crate', name: 'IMPORTED BATTERIES', note: 'for solar storage', at: B.levy.w.imported - 0.1, out: B.saving.w.amount - 0.3, off: [-260, 260] },
-    { key: 'levy', name: '10% LEVY', note: 'port & airport development', at: B.levy.w.levy - 0.1, out: B.levy.w.remove + 0.3, off: [120, -300] },
-    { key: 'levyOff', name: 'LEVY REMOVED', note: 'no 10% on these batteries', at: B.levy.w.remove + 0.15, out: B.saving.w.amount - 0.3, off: [-120, -330] },
-    { key: 'saving', name: 'SAVE Rs 4,000-5,000', note: 'per kWh of battery', at: B.saving.w.amount - 0.1, out: B.netplus.s + 0.2, off: [-300, -260] },
-    { key: 'meter', name: 'NET PLUS', note: 'new solar + battery only', at: B.netplus.w.netplus - 0.1, out: B.notice.s + 0.5, off: [160, -210] },
-    { key: 'notice', name: 'STILL A PROPOSAL', note: 'check the official notice', at: B.notice.s + 0.1, out: B.goal.s + 0.5, off: [-470, -150] },
+    { key: 'book', name: 'BUDGET 2027', note: 'new subsidy proposal', at: B.budget.w.budget - 0.15, out: B.rooftop.s + 1.2, off: [-200, 330] },
+    { key: 'parliament', name: 'PARLIAMENT', note: 'proposal presented', at: B.budget.w.parliament - 0.15, out: B.rooftop.s + 1.2, off: [-300, -360] },
+    { key: 'roof', name: 'NEW ROOFTOP SOLAR', note: 'households qualify', at: B.rooftop.w.rooftop - 0.1, out: B.battery.s + 0.4, off: [-250, -330] },
+    { key: 'rack', name: 'WITH A BATTERY', note: 'new solar + storage', at: B.battery.w.battery - 0.05, out: B.perkwh.s - 0.3, off: [-500, 360], big: { text: 'UP TO Rs 250,000', at: B.battery.w.amount - 0.1 } },
+    { key: 'home', name: 'MAX PER HOME', note: 'Rs 250,000', at: B.perhome.w.home - 0.1, out: B.fund.s + 0.3, off: [-300, -340] },
+    { key: 'fund', name: 'Rs 3.5 BILLION', note: 'set aside for the scheme', at: B.fund.w.fund - 0.15, out: B.levy.s + 1.5, off: [-200, 360] },
+    { key: 'crate', name: 'IMPORTED BATTERIES', note: 'for solar storage', at: B.levy.w.imported - 0.1, out: B.saving.w.amount - 0.3, off: [-300, 380] },
+    { key: 'levy', name: '10% LEVY', note: 'port & airport development', at: B.levy.w.levy - 0.1, out: B.levy.w.remove + 0.3, off: [-250, -380] },
+    { key: 'levyOff', name: 'LEVY REMOVED', note: 'no 10% on these batteries', at: B.levy.w.remove + 0.15, out: B.saving.w.amount - 0.3, off: [-200, -400] },
+    { key: 'saving', name: 'SAVE Rs 4,000-5,000', note: 'per kWh of battery', at: B.saving.w.amount - 0.1, out: B.netplus.s + 0.2, off: [-400, -380] },
+    { key: 'meter', name: 'NET PLUS', note: 'new solar + battery only', at: B.netplus.w.netplus - 0.1, out: B.notice.s + 0.5, off: [-500, -420] },
+    { key: 'notice', name: 'STILL A PROPOSAL', note: 'check the official notice', at: B.notice.s + 0.1, out: B.goal.s + 0.5, off: [-200, -520] },
   ];
 
   registerStyle({
@@ -448,7 +448,7 @@
         ctx.font = '700 50px "Inter"'; ctx.letterSpacing = '3px'; const wName = ctx.measureText(L.name).width;
         ctx.font = '500 38px "Inter"'; ctx.letterSpacing = '0px'; let wText = Math.max(wName, ctx.measureText(L.note).width); const R = 25;
         if (L.big) { ctx.font = '800 86px "Inter"'; wText = Math.max(wText, ctx.measureText(L.big.text).width); }
-        const c = [K.clamp(a[0] + L.off[0], 70 + R, W - 70 - R - 18 - wText), K.clamp(a[1] + L.off[1], 80 + R, H - 150)];
+        const c = [K.clamp(a[0] + L.off[0], 70 + R, W - 70 - R - 18 - wText), K.clamp(a[1] + L.off[1], 140 + R, H - (L.big ? 300 : 200))];
         const d = Math.hypot(a[0] - c[0], a[1] - c[1]) || 1, ux = (a[0] - c[0]) / d, uy = (a[1] - c[1]) / d;
         const grow = K.ease.out(K.clamp(p / 0.45)), ex = a[0] - ux * (d - R) * grow, ey = a[1] - uy * (d - R) * grow;
         ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(ex, ey); ctx.stroke();
@@ -476,10 +476,10 @@
         let lit = 0; for (const m of mods) if (m.k <= CAP && t >= m.at) lit = m.k;
         const placed = t >= T.mods[12] ? 12 : t >= T.mods[11] ? 11 : lit, cap = t >= T.max;
         const a = px([RX + RW / 2 + 0.05, modY(Math.max(1, lit)), RZ + RD / 2], W, H);
-        const x = K.clamp(a[0] + 120, 80, W - 760), y = K.clamp(a[1] - 40, 220, H - 260);
+        const base = px([RX, 0, RZ + RD / 2], W, H), x = 90, y = K.clamp(base[1] + 230, 300, H - 300);   // a block under the rack, left-aligned
         ctx.save(); ctx.globalAlpha = (1 - q) * K.clamp(p * 2);
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(x - 14, y - 30); ctx.stroke();
-        ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(x - 14, y - 30); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(x + 40, y - 90); ctx.stroke();
+        ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(x + 40, y - 90); ctx.stroke();
         ctx.fillStyle = INK; ctx.beginPath(); ctx.arc(a[0], a[1], 6, 0, 7); ctx.fill();
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
         ctx.font = '600 40px "IBM Plex Mono"'; halo(ctx, `${placed > lit ? lit + '+' : lit} kWh`, x, y - 40);
@@ -492,23 +492,24 @@
 
       // ================================================================ 6. CAMERA: one continuous crane through the board
       // keys: [time, [azimuth deg, elevation deg, distance, aim x, y, z]]. Times come from BEATS.
+      // framed for a tall 9:16 picture: streets are seen along their length so they recede up the frame
       const cam = K.path([
-        [0, [-24, 9, 10.5, PC[0] + 0.1, 0.75, PC[1] + 0.6]],
-        [B.budget.w.parliament, [-16, 15, 13.5, PC[0], 0.9, PC[1] + 0.2]],
-        [B.rooftop.s + 1.5, [-12, 17, 15, PC[0] + 4, 0.8, 1.2]],
-        [B.rooftop.w.rooftop + 0.6, [-12, 18, 14.5, -0.6, 1.7, 0.6]],
-        [B.battery.w.amount, [10, 15, 12.5, 1.4, 1.4, 0.7]],
-        [B.perkwh.w.one, [22, 9, 7.0, RX + 0.35, 0.95, RZ]],
-        [B.ten.w.amount, [30, 11, 7.2, RX + 0.35, 0.95, RZ]],
-        [B.perhome.w.amount, [12, 17, 13.5, 1.2, 1.4, 0.4]],
-        [B.fund.w.fund + 2.6, [2, 36, 34, -2.5, 0.4, -4.5]],
-        [B.levy.w.imported + 0.5, [-18, 22, 14, 18.6, 1.0, 1.2]],
-        [B.levy.w.remove + 1.5, [-24, 20, 10.5, 17.2, 0.7, 2.0]],
-        [B.saving.w.amount + 1.5, [6, 26, 24, 10, 0.6, 2.0]],
-        [B.netplus.w.netplus + 1, [6, 13, 12.5, 1.6, 1.6, 1.8]],
-        [B.notice.s + 1.4, [-10, 11, 8.5, -3.6, 0.9, 2.4]],
-        [B.notice.e - 0.6, [-16, 13, 9.5, -3.4, 0.95, 2.3]],
-        [DURATION + 2, [-3, 38, 64, 2.6, 0, -2.0]],
+        [0, [-22, 12, 17, PC[0] + 0.1, 0.65, PC[1] + 0.5]],
+        [B.budget.w.parliament, [-16, 18, 30, PC[0], 0.9, PC[1] + 0.1]],
+        [B.rooftop.s + 1.5, [-62, 22, 32, -10, 0.8, 1.6]],
+        [B.rooftop.w.rooftop + 0.6, [-16, 17, 26, -0.4, 1.6, 0.6]],
+        [B.battery.w.amount, [8, 15, 27, 0.9, 1.4, 0.7]],
+        [B.perkwh.w.one, [20, 9, 10.5, RX, 0.62, RZ]],
+        [B.ten.w.amount, [30, 11, 11, RX, 0.66, RZ]],
+        [B.perhome.w.amount, [12, 16, 27, 0.6, 1.5, 0.4]],
+        [B.fund.w.fund + 2.6, [-64, 30, 44, 0.5, 0.3, -6.0]],
+        [B.levy.w.imported + 0.5, [-20, 24, 19, 18.4, 0.8, 1.2]],
+        [B.levy.w.remove + 1.5, [-26, 21, 14, 17.0, 0.6, 2.0]],
+        [B.saving.w.amount + 1.5, [72, 22, 30, 9.5, 0.6, 2.4]],
+        [B.netplus.w.netplus + 1, [10, 13, 26, 1.0, 1.6, 2.2]],
+        [B.notice.s + 1.4, [-10, 11, 12, -4.0, 0.8, 2.6]],
+        [B.notice.e - 0.6, [-16, 13, 13.5, -3.8, 0.85, 2.5]],
+        [DURATION + 2, [-86, 42, 96, 2.0, 0, -2.6]],
       ]);
 
       return {
@@ -539,9 +540,9 @@
           // camera
           const c = cam(t), az = c[0] * Math.PI / 180, el = c[1] * Math.PI / 180, aim = [c[3], c[4], c[5]];
           K.look(camera, [aim[0] + c[2] * Math.sin(az) * Math.cos(el), aim[1] + c[2] * Math.sin(el), aim[2] + c[2] * Math.cos(az) * Math.cos(el)], aim);
-          K.focus(camera, aim, 0.075 * c[2] / 13);
+          K.focus(camera, aim, S.samples >= 6 ? 0.06 * c[2] / 13 : 0);   // depth of field only when there are enough samples to blur it
           // the daylight follows the shot, so its shadows stay crisp near and still cover the whole board far away
-          const sz = K.clamp(c[2] * 0.62, 7, 34);
+          const sz = K.clamp(c[2] * 0.45, 7, 36);
           sun.target.position.set(...aim); sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 60);
           if (sun.shadow.camera.right !== sz) { const sc = sun.shadow.camera; sc.left = sc.bottom = -sz; sc.right = sc.top = sz; sc.updateProjectionMatrix(); const kc = sky.shadow.camera; kc.left = kc.bottom = -sz; kc.right = kc.top = sz; kc.updateProjectionMatrix(); }
           sky.target.position.set(aim[0], 0.5, aim[2]);

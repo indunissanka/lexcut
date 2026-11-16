@@ -1,1 +1,5 @@
 voice.wav
+render/segments/
+render/*.wav
+render/*.log
+*.mp4
