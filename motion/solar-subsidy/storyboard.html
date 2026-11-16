@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Storyboard: Solar battery subsidy (White Model)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+Sinhala:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #1b1e22; --mute: #5d636b; --line: #d9dcdf; --accent: #ff6a00; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eceae5; color: var(--ink); font: 15px/1.5 Inter, system-ui, sans-serif; }
+  header { padding: 40px 48px 8px; max-width: 1680px; margin: 0 auto; }
+  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--mute); max-width: 900px; }
+  .status { font: 600 13px "IBM Plex Mono", monospace; color: var(--mute); margin-top: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(480px, 1fr)); gap: 28px; padding: 28px 48px; max-width: 1680px; margin: 0 auto; }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .panel .img { aspect-ratio: 16 / 9; background: #b4b8bd; display: grid; place-items: center; color: #fff; font: 600 13px "IBM Plex Mono", monospace; }
+  .panel img { width: 100%; display: block; }
+  .meta { padding: 14px 18px 18px; }
+  .head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+  .num { font: 600 13px "IBM Plex Mono", monospace; border: 1.5px solid var(--ink); border-radius: 50%; width: 26px; height: 26px; display: grid; place-items: center; flex: none; }
+  .time { font: 600 13px "IBM Plex Mono", monospace; color: var(--mute); }
+  .title { font-weight: 700; font-size: 16px; }
+  .say { font-family: "Noto Sans Sinhala", Inter, sans-serif; color: var(--mute); font-size: 13.5px; margin: 0 0 10px; }
+  dl { display: grid; grid-template-columns: 92px 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+  dt { font: 600 11.5px "IBM Plex Mono", monospace; color: var(--mute); text-transform: uppercase; padding-top: 2px; }
+  dd { margin: 0; }
+  .txt { font-weight: 600; }
+  .txt b { color: var(--accent); }
+  section.notes { max-width: 1680px; margin: 0 auto; padding: 8px 48px 60px; }
+  section.notes h2 { font-size: 20px; margin: 18px 0 8px; }
+  section.notes li { margin: 4px 0; max-width: 1100px; }
+  canvas#stage { position: fixed; left: -99999px; top: 0; width: 1920px; height: 1080px; }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js" } }</script>
+</head>
+<body>
+<header>
+  <h1>Storyboard: the Budget 2027 solar battery subsidy, as a white model</h1>
+  <p>One continuous crane over a single white site board: Parliament on its island, the street with the hero house and its battery rack, a neighbourhood of homes behind it, and the port at the far end. The orange accent always means <b>the subsidy</b>; it leaves the budget book and travels the model along thin conduits. The timings come from the 20-line subtitle file (0:00 to 1:37); the piece runs 98 s.</p>
+  <div class="status" id="status">Rendering stills…</div>
+</header>
+<div class="grid" id="grid"></div>
+<section class="notes">
+  <h2>Facts and numbers I had to assume</h2>
+  <ul>
+    <li><b>Timing</b> comes from the subtitle file only (as you asked). Word times inside each line are estimated from where the word sits in its line. The attached voice.wav runs 1:43, about 6 s longer than the subtitles, so if it is muxed in it will drift. Tell me whether the final MP4 should carry the voice or be picture + effects only.</li>
+    <li><b>Subsidy maths</b>, as in the script: Rs 25,000 per kWh of battery. 5 kWh = Rs 125,000, 8 kWh = Rs 200,000, 10 kWh or more = Rs 250,000 (the cap per home). The readout counts these exactly.</li>
+    <li><b>Rs 3.5 billion</b> fund: shown as a label. The neighbourhood holds 12 model homes. That's not a literal count: at the cap the fund covers about 14,000 homes (3.5 bn ÷ 250,000). I left that derived number off screen.</li>
+    <li><b>The levy</b> is labelled "10% LEVY · port &amp; airport development" (the Port and Airport Development Levy, PAL). The saving is shown as Rs 4,000–5,000 per kWh, as stated in the script.</li>
+    <li><b>Net Plus</b> is shown as the house meter and its line to the grid, labelled "new solar + battery only".</li>
+    <li><b>No people are depicted.</b> The President is mentioned in the voice only; on screen, the beat shows the Parliament model and a PARLIAMENT label. The Parliament is drawn as a simple cluster of pavilions with stacked hipped roofs on an island, a nod to the real building, not a replica.</li>
+    <li><b>On-screen words are English</b> (Inter / IBM Plex Mono, as specified). These fonts have no Sinhala glyphs. If you want Sinhala labels, I'll add Noto Sans Sinhala.</li>
+    <li><b>Stills are block-outs</b> at 16 samples, rendered in software (no GPU here), so depth of field and shadows are slightly grainier than in the final.</li>
+  </ul>
+</section>
+<canvas id="stage" width="1920" height="1080"></canvas>
+<script type="module">
+  import * as THREE from 'three';
+  window.THREE = THREE;
+  const load = (src) => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+  await load('lib/stage.js'); await load('lib/sound.js'); await load('style.js');
+  const style = STYLES[STYLES.length - 1], B = Object.fromEntries(style.BEATS.map((b) => [b.id, b]));
+  const f = (t) => { const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s.toFixed(1).padStart(4, '0')}`; };
+
+  // one panel per beat: the key frame (t), the words on screen, what changes, the camera and the key sounds
+  const PANELS = [
+    { b: ['budget'], t: 7.6, title: 'The budget leaves Parliament', text: 'BUDGET 2027 · PARLIAMENT',
+      moves: 'Opens on the budget book on Parliament\'s top step, already glowing orange. BUDGET 2027 draws in on "2027", PARLIAMENT on "පාර්ලිමේන්තුවට".',
+      cam: 'Starts low and close on the book, then rises slowly to take in the island and its pavilions.', snd: 'Warm air on frame one; two label pops.' },
+    { b: ['rooftop'], t: 12.6, title: 'New rooftop solar qualifies', text: 'NEW ROOFTOP SOLAR · households qualify',
+      moves: 'The accent runs down the steps, over the causeway and along the street to a house, up its wall and onto the roof. The 12 new panels switch on in a wave on "වහල මත සූර්ය පද්ධතියක්".',
+      cam: 'Travels with the conduit along the street, then settles on the house.', snd: 'Long soft whoosh along the road; a tick and a rising note for each panel.' },
+    { b: ['battery'], t: 19.5, title: 'With a battery: up to Rs 250,000', text: 'WITH A BATTERY · <b>UP TO Rs 250,000</b>',
+      moves: 'A branch runs along the front wall to the battery rack beside the house. Its sign lights up. The big number lands on "250,000".',
+      cam: 'Swings right and in, framing the house and the rack together.', snd: 'Click and tock as the branch arrives; a ding on the number.' },
+    { b: ['perkwh'], t: 28.5, title: 'Rs 25,000 for every kWh', text: '1 kWh · <b>Rs 25,000</b> · Rs 25,000 per kWh',
+      moves: 'Close on the rack: 12 numbered module slots. Module 1 lights on "1 kWh". A readout next to the rack shows 1 kWh / Rs 25,000 on "25,000".',
+      cam: 'Pushes in close on the rack with shallow focus.', snd: 'One card tock and a note for the module.' },
+    { b: ['five', 'eight'], t: 38.5, title: '5 kWh → Rs 125,000 · 8 kWh → Rs 200,000', text: '5 kWh · <b>Rs 125,000</b> → 8 kWh · <b>Rs 200,000</b>',
+      moves: 'Modules 2–5 light one after another, landing on "5 kWh"; the readout ticks up to Rs 125,000. Then modules 6–8 light, landing on "8 kWh"; Rs 200,000.',
+      cam: 'Holds on the rack, drifting slowly around it.', snd: 'A tock and a rising note per module (a little scale).' },
+    { b: ['ten'], t: 43.8, title: '10 kWh or more: the cap', text: '10+ kWh · <b>Rs 250,000</b> · maximum: 10 kWh or more',
+      moves: 'Modules 9–10 light on "10 kWh". Two more modules drop on top on "ඊට වැඩි" but stay white: no extra money. A MAX tab slides in at module 10 on "උපරිම".',
+      cam: 'Keeps drifting around the rack.', snd: 'Last two notes of the scale; two soft card thuds for the extra modules; a stamp on MAX.' },
+    { b: ['perhome'], t: 48.6, title: 'Rs 250,000 is the most per home', text: 'MAX PER HOME · Rs 250,000',
+      moves: 'The readout leaves. The label names the whole house: the cap is per home.',
+      cam: 'Pulls back to the full house, roof and rack.', snd: 'A soft two-note success on "දෙලක්ෂ පනස්දහසක්".' },
+    { b: ['fund'], t: 53.8, title: 'A Rs 3.5 billion fund', text: '<b>Rs 3.5 BILLION</b> · set aside for the scheme',
+      moves: 'From the causeway a spine runs down to two back streets. The accent spreads along them, and 12 homes light up one after another (roof panels, then battery).',
+      cam: 'Big crane up and back over the neighbourhood.', snd: 'Whoosh; a tick and a note per home; a sparkle when the last one lights.' },
+    { b: ['levy'], t: 63.8, title: 'The 10% levy comes off imported batteries', text: 'IMPORTED BATTERIES · 10% LEVY → LEVY REMOVED',
+      moves: 'At the port (ship, crane, crates), one crate of batteries carries a white "10%" block. On "ඉවත් කිරීමට" the block is lifted off and set down on the quay.',
+      cam: 'Travels across the board to the port, then settles in on the crate.', snd: 'Travel whoosh; a swish as the block lifts, a slap as it lands.' },
+    { b: ['saving'], t: 72.5, title: 'Saving: Rs 4,000–5,000 per kWh', text: '<b>SAVE Rs 4,000–5,000</b> · per kWh of battery',
+      moves: 'The crate\'s battery sign lights up. A second conduit carries the saving back up the street into the bottom of the battery rack.',
+      cam: 'Rises and follows the conduit back toward the house.', snd: 'A ding at the crate, a long whoosh up the road, a ding on the number.' },
+    { b: ['netplus'], t: 77.6, title: 'Only under Net Plus', text: 'NET PLUS · new solar + battery only',
+      moves: 'The meter on the front wall switches on, and its line lights up across the road to the grid pole and along the wires.',
+      cam: 'Comes back down to the front of the house.', snd: 'Click and tock at the meter.' },
+    { b: ['notice'], t: 87, title: 'Still a proposal: check the official notice', text: 'STILL A PROPOSAL · check the official notice<br>(card: OFFICIAL NOTICE · How to apply ? · Start date ?)',
+      moves: 'A white notice card hinges up off the board in the front yard like a page. Its two lines ("How to apply ?" and "Start date ?") are open questions until the final notice.',
+      cam: 'Slides left to the card.', snd: 'A paper rustle as the card rises; a pencil stroke on each line.' },
+    { b: ['goal'], t: 97.9, title: 'The aim: solar + storage within reach', text: '(no new words: the picture is the result)',
+      moves: 'Everything stays lit: the book, the street, the house and rack, 12 homes, the port line. The last frame holds.',
+      cam: 'One long crane up and back until the whole board is in frame. It keeps moving very slowly to the end.', snd: 'A soft riser, then a success chord at the end.' },
+  ];
+
+  const grid = document.getElementById('grid');
+  const cards = PANELS.map((p, i) => {
+    const s = B[p.b[0]].s, e = B[p.b[p.b.length - 1]].e;
+    const el = document.createElement('article'); el.className = 'panel';
+    el.innerHTML = `<div class="img">rendering ${f(p.t)}…</div><div class="meta">
+      <div class="head"><span class="num">${i + 1}</span><span class="title">${p.title}</span></div>
+      <div class="time">${f(s)} – ${f(e)} · key frame ${f(p.t)}</div>
+      <p class="say">${p.b.map((id) => B[id].say).join(' ')}</p>
+      <dl><dt>On screen</dt><dd class="txt">${p.text}</dd><dt>Change</dt><dd>${p.moves}</dd><dt>Camera</dt><dd>${p.cam}</dd><dt>Sound</dt><dd>${p.snd}</dd></dl></div>`;
+    grid.appendChild(el); return el;
+  });
+
+  const canvas = document.getElementById('stage');
+  const S = await K.run(canvas, style, { samples: 16 });
+  const status = document.getElementById('status');
+  const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+  for (let i = 0; i < PANELS.length; i++) {
+    status.textContent = `Rendering still ${i + 1} of ${PANELS.length}…`;
+    await frame();
+    S.seek(PANELS[i].t, 16);
+    const img = new Image(); img.src = canvas.toDataURL('image/jpeg', 0.9); img.alt = PANELS[i].title;
+    cards[i].querySelector('.img').replaceWith(img);
+  }
+  status.textContent = `${PANELS.length} stills · STAGE kit, 16 samples · 1920×1080`;
+  window.STORYBOARD_DONE = true;
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+voice.wav
+render/segments/
+render/*.wav
+render/*.log
+*.mp4
+solar-subsidy-effects.wav

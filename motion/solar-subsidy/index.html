@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Budget 2027: the solar battery subsidy (White Model)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #8f9398; color: #1b1e22; font: 500 14px/1.4 Inter, system-ui, sans-serif; overflow: hidden; }
+  #wrap { position: fixed; inset: 0 0 56px 0; display: grid; place-items: center; }
+  canvas { display: block; background: #b4b8bd; box-shadow: 0 10px 40px rgba(0,0,0,0.25); }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: #f4f3ef; border-top: 1px solid #d6d6d2; }
+  button, label.btn { font: 600 13px Inter, sans-serif; border: 1px solid #c9cac6; background: #fff; border-radius: 7px; padding: 7px 11px; cursor: pointer; color: #1b1e22; white-space: nowrap; }
+  button.on { background: #1b1e22; color: #fff; border-color: #1b1e22; }
+  #play { width: 44px; font-size: 15px; }
+  #scrub { flex: 1; accent-color: #ff6a00; min-width: 60px; }
+  #time { font: 600 13px "IBM Plex Mono", monospace; min-width: 104px; text-align: right; }
+  #vo { font: 500 12px Inter, sans-serif; color: #5d636b; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #drop { position: fixed; inset: 0; display: none; place-items: center; background: rgba(255,106,0,0.18); border: 4px dashed #ff6a00; font: 700 22px Inter, sans-serif; color: #1b1e22; z-index: 5; }
+  body.dragging #drop { display: grid; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; font: 600 14px "IBM Plex Mono", monospace; color: #fff; }
+  input[type=file] { display: none; }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js" } }</script>
+</head>
+<body>
+<div id="wrap"><canvas id="c" width="1080" height="1920"></canvas></div>
+<div id="loading">Building the model…</div>
+<div id="drop">Drop the voiceover audio file</div>
+<div id="bar">
+  <button id="play" title="Play / pause (space)">▶</button>
+  <input id="scrub" type="range" min="0" max="1" step="0.001" value="0">
+  <span id="time">0:00.0 / 0:00</span>
+  <button id="sound" class="on" title="Sound effects on/off">Sound</button>
+  <button id="loop" class="on" title="Loop">Loop</button>
+  <label class="btn" title="Load a voiceover audio file (or drop one on the page)">Load voiceover<input id="file" type="file" accept="audio/*"></label>
+  <span id="vo"></span>
+</div>
+<script type="module">
+  import * as THREE from 'three';
+  window.THREE = THREE;
+  const load = (src) => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+  await load('lib/stage.js'); await load('lib/sound.js'); await load('style.js');
+  const style = STYLES[STYLES.length - 1];
+  const canvas = document.getElementById('c');
+  const LIVE = 3;   // samples while playing; the video render uses more
+  const S = await K.run(canvas, style, { samples: LIVE, width: 1080, height: 1920 });
+  const D = style.duration;
+  window.S = S; window.style = style; window.DURATION = D; window.seek = (t, n) => S.seek(t, n);
+  document.getElementById('loading').remove();
+
+  // fit the 1080x1920 canvas into the window
+  const fit = () => { const w = innerWidth - 24, h = innerHeight - 56 - 24, k = Math.min(w / 1080, h / 1920); canvas.style.width = 1080 * k + 'px'; canvas.style.height = 1920 * k + 'px'; };
+  addEventListener('resize', fit); fit();
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (t) => { const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s.toFixed(1).padStart(4, '0')}`; };
+  let playing = false, t = 0, last = 0, soundOn = true, loop = true, stopSound = null, audio = null;
+
+  const startSound = () => { stopFx(); if (soundOn && playing) stopSound = SOUND.live((k) => style.sound(k), t, { voiceover: true }); };
+  const stopFx = () => { if (stopSound) { stopSound(); stopSound = null; } };
+  const draw = () => { S.seek(t); $('scrub').value = t / D; $('time').textContent = `${fmt(t)} / ${fmt(D)}`; };
+
+  function play() {
+    if (t >= D - 0.02) t = 0;
+    playing = true; $('play').textContent = '❚❚'; last = performance.now();
+    if (audio) { audio.currentTime = t; audio.play().catch(() => {}); }
+    startSound();
+  }
+  function pause() { playing = false; $('play').textContent = '▶'; if (audio) audio.pause(); stopFx(); }
+  function seekTo(nt) { t = K.clamp(nt, 0, D); if (audio) audio.currentTime = Math.min(t, audio.duration || t); stopFx(); if (playing) startSound(); draw(); }
+
+  function tick(now) {
+    if (playing) {
+      if (audio && !audio.paused) t = audio.currentTime;          // the voiceover is the clock
+      else t += (now - last) / 1000;
+      last = now;
+      const end = audio ? Math.max(D, audio.duration || 0) : D;
+      if (t >= end || (audio && audio.ended)) {
+        if (loop) { t = 0; if (audio) { audio.currentTime = 0; audio.play().catch(() => {}); } startSound(); }
+        else { t = Math.min(t, D); pause(); }
+      }
+      draw();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick); draw();
+
+  $('play').onclick = () => (playing ? pause() : play());
+  addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); playing ? pause() : play(); } });
+  $('scrub').oninput = (e) => seekTo(+e.target.value * D);
+  $('sound').onclick = () => { soundOn = !soundOn; $('sound').classList.toggle('on', soundOn); if (!soundOn) stopFx(); else if (playing) startSound(); };
+  $('loop').onclick = () => { loop = !loop; $('loop').classList.toggle('on', loop); };
+
+  function useAudio(file) {
+    if (!file || !/^audio\//.test(file.type || 'audio/')) return;
+    pause();
+    if (audio) { URL.revokeObjectURL(audio.src); audio.pause(); }
+    audio = new Audio(URL.createObjectURL(file)); audio.preload = 'auto';
+    $('vo').textContent = '🎙 ' + file.name;
+    audio.addEventListener('loadedmetadata', () => seekTo(t));
+  }
+  $('file').onchange = (e) => useAudio(e.target.files[0]);
+  addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('dragging'); });
+  addEventListener('dragleave', (e) => { if (e.target === $('drop')) document.body.classList.remove('dragging'); });
+  addEventListener('drop', (e) => { e.preventDefault(); document.body.classList.remove('dragging'); useAudio(e.dataTransfer.files[0]); });
+</script>
+</body>
+</html>
