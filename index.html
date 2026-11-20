@@ -18,7 +18,7 @@
         <button id="btn-new" title="Start a new empty project">New project</button>
         <button id="btn-import">Import media…</button>
         <button id="btn-folder" title="Pick a folder of media files. Claude can add them to the timeline for you">Media folder…</button>
-        <button id="btn-srt">Import captions (SRT/VTT)…</button>
+        <button id="btn-srt">Import captions (SRT/VTT, several files)…</button>
         <button id="btn-srt-out" title="Download the captions on a text layer (including translated layers) as SRT or VTT">Export captions (SRT/VTT)…</button>
         <hr>
         <button id="btn-save">Save project</button>
@@ -86,7 +86,7 @@
   <button id="btn-redo" title="Ctrl+Shift+Z">Redo</button>
   <button id="btn-export" class="primary">Export…</button>
   <input id="file-media" type="file" accept="video/*,audio/*,image/*" multiple hidden>
-  <input id="file-srt" type="file" accept=".srt,.vtt,text/vtt" hidden>
+  <input id="file-srt" type="file" accept=".srt,.vtt,text/vtt" multiple hidden>
   <input id="file-proj" type="file" accept=".json,application/json" hidden>
 </header>
 

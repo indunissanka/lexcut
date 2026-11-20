@@ -529,27 +529,31 @@ function parseTime(s) {
   const m = s.match(/(?:(\d+):)?(\d+):(\d+)[,.](\d+)/);
   return m ? (+(m[1] || 0)) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4].padEnd(3, '0').slice(0, 3)) / 1000 : NaN;
 }
-function importCaptions(text) {
+// Returns how many captions were added. offset (s) shifts them, e.g. to the start of the matching clip.
+function importCaptions(text, offset = 0) {
   const out = [];
   for (const block of text.replace(/\r/g, '').split(/\n\s*\n/)) {
     const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
     const i = lines.findIndex(l => l.includes('-->'));
     if (i < 0) continue;
     const [a, b] = lines[i].split('-->');
-    const start = parseTime(a), end = parseTime(b);
+    const start = parseTime(a) + offset, end = parseTime(b) + offset;
     const body = lines.slice(i + 1).join('\n').replace(/<[^>]+>/g, '');
-    if (isNaN(start) || isNaN(end) || end <= start || !body) continue;
+    if (isNaN(start) || isNaN(end) || end <= start || start < 0 || !body) continue;
     out.push({ start, end, body });
   }
-  if (!out.length) { alert('No captions found in that file.'); return; }
+  if (!out.length) return 0;
   pushHistory();
+  let added = 0;
   for (const o of out) {
     if (!fits({ id: -1 }, o.start, o.end - o.start, 0)) continue;
     const c = newTextClip(o.body, o.start, o.end - o.start);
     c.size = Math.round(H / 20); c.bg = true; c.y = 88;
     state.clips.push(c);
+    added++;
   }
   afterEdit();
+  return added;
 }
 
 // ---------- rendering the preview ----------
@@ -2073,7 +2077,18 @@ function loadProject(text) {
 $('#btn-import').onclick = () => $('#file-media').click();
 $('#file-media').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
 $('#btn-srt').onclick = () => $('#file-srt').click();
-$('#file-srt').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (f) importCaptions(await f.text()); };
+// Several files at once: a file named like a clip on the timeline (clip.mp4 + clip.srt) lands where that clip is, others at 0.
+$('#file-srt').onchange = async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  const stem = n => n.replace(/\.[^.]*$/, '').toLowerCase();
+  const report = [];
+  for (const f of files) {
+    const clip = state.clips.find(c => c.assetId != null && state.assets.get(c.assetId) && stem(state.assets.get(c.assetId).name) === stem(f.name));
+    const n = importCaptions(await f.text(), clip ? clip.start - clip.in : 0);
+    report.push(`${f.name}: ${n ? `${n} captions${clip ? ' at the clip' : ''}` : 'nothing added (no captions, or the spot was taken)'}`);
+  }
+  if (files.length && (files.length > 1 || report[0].includes('nothing'))) alert(report.join('\n'));
+};
 $('#btn-load').onclick = () => $('#file-proj').click();
 $('#file-proj').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (f) loadProject(await f.text()); };
 $('#btn-save').onclick = saveProject;
