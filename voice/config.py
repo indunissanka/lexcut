@@ -38,6 +38,11 @@ def update(**kw) -> dict:
         return cfg
 
 
+def venv_python(root) -> Path:
+    """The Python inside a virtual environment folder (Scripts/python.exe on Windows, bin/python elsewhere)."""
+    return Path(root) / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+
+
 def data_dir() -> Path:
     """Voice samples, generated audio and the database. Private to this user (mode 700)."""
     d = Path(os.environ.get("OPENCUT_VOICE_DATA", HOME / "voice_data"))

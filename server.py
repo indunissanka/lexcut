@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path(__file__).parent))
 from voice import api as voice_api
+from voice.config import venv_python
 import cloud
 import voicetools
 
@@ -318,7 +319,7 @@ def run_analyze(data: bytes, kind: str, q: dict) -> dict:
     raise ValueError("unknown analysis")
 
 
-TTS_PY = Path(os.environ.get("LEXCUT_TTS_VENV") or Path.home() / ".opencut" / "venv-tts") / "bin" / "python"
+TTS_PY = venv_python(os.environ.get("LEXCUT_TTS_VENV") or Path.home() / ".opencut" / "venv-tts")
 
 
 def enrolled_voices():

@@ -8,6 +8,16 @@ sys.stdout = sys.stderr   # keep stdout clean for the protocol
 
 import torch
 from TTS.api import TTS
+import soundfile as sf
+import torchaudio
+
+
+def _load_wav(path, *args, **kwargs):   # torchaudio.load needs torchcodec + FFmpeg DLLs, which fail to load on Windows
+    data, sr = sf.read(path, dtype="float32", always_2d=True)
+    return torch.from_numpy(data.T.copy()), sr
+
+
+torchaudio.load = _load_wav
 
 dev = os.environ.get("OPENCUT_TTS_DEVICE", "auto")
 if dev == "auto":
