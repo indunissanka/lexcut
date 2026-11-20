@@ -2004,7 +2004,7 @@ async function exportVideo() {
     let ext = 'webm';
     if (fmt !== 'webm') {
       btn.textContent = 'Converting…';
-      const r = await fetch(`/api/export?fmt=${fmt}&w=${+$('#ex-w').value || 0}&h=${+$('#ex-h').value || 0}&fps=${+$('#ex-fps').value || 0}`, { method: 'POST', body: blob });
+      const r = await fetch(`/api/export?fmt=${fmt}&w=${+$('#ex-w').value || 0}&h=${+$('#ex-h').value || 0}&fps=${+$('#ex-fps').value || 0}&v360=${$('#ex-360').checked ? 1 : 0}`, { method: 'POST', body: blob });
       if (!r.ok) {
         let msg = 'Conversion failed.';
         try { msg = (await r.json()).error || msg; } catch {}

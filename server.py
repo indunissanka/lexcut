@@ -203,7 +203,46 @@ EXPORT_FORMATS = {
 }
 
 
-def run_export(data: bytes, fmt: str, w: int = 0, h: int = 0, fps: int = 0) -> tuple:
+SPHERICAL_UUID = bytes.fromhex("ffcc8263f8554a938814587a02521fdd")   # Google spherical video v1 (YouTube, Facebook, VR players)
+SPHERICAL_XML = (b'<?xml version="1.0"?><rdf:SphericalVideo xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" '
+                 b'xmlns:GSpherical="http://ns.google.com/videos/1.0/spherical/"><GSpherical:Spherical>true</GSpherical:Spherical>'
+                 b'<GSpherical:Stitched>true</GSpherical:Stitched><GSpherical:StitchingSoftware>LexCut</GSpherical:StitchingSoftware>'
+                 b'<GSpherical:ProjectionType>equirectangular</GSpherical:ProjectionType></rdf:SphericalVideo>')
+
+
+def _boxes(b: bytes, s: int, e: int):
+    while s + 8 <= e:
+        n = int.from_bytes(b[s:s + 4], "big")
+        n = e - s if n == 0 else int.from_bytes(b[s + 8:s + 16], "big") if n == 1 else n
+        if n < 8:
+            return
+        yield b[s + 4:s + 8], s, s + n
+        s += n
+
+
+def mark_360(mp4: bytes) -> bytes:
+    """Tag the video track of an MP4 as equirectangular 360. Needs moov after mdat (no faststart), so no chunk offsets move."""
+    top = {t: (s, e) for t, s, e in _boxes(mp4, 0, len(mp4))}
+    if b"moov" not in top:
+        raise RuntimeError("360 tagging: no moov box")
+    ms, me = top[b"moov"]
+    if b"mdat" in top and top[b"mdat"][0] > ms:
+        raise RuntimeError("360 tagging: moov is before mdat")
+    for t, ts, te in _boxes(mp4, ms + 8, me):
+        if t != b"trak":
+            continue
+        mdia = next(((s, e) for t2, s, e in _boxes(mp4, ts + 8, te) if t2 == b"mdia"), None)
+        hdlr = mdia and next((s for t2, s, e in _boxes(mp4, mdia[0] + 8, mdia[1]) if t2 == b"hdlr"), None)
+        if hdlr is not None and mp4[hdlr + 16:hdlr + 20] == b"vide":
+            box = (8 + 16 + len(SPHERICAL_XML)).to_bytes(4, "big") + b"uuid" + SPHERICAL_UUID + SPHERICAL_XML
+            out = bytearray(mp4[:te] + box + mp4[te:])
+            for s0 in (ts, ms):
+                out[s0:s0 + 4] = (int.from_bytes(out[s0:s0 + 4], "big") + len(box)).to_bytes(4, "big")
+            return bytes(out)
+    raise RuntimeError("360 tagging: no video track")
+
+
+def run_export(data: bytes, fmt: str, w: int = 0, h: int = 0, fps: int = 0, is360: bool = False) -> tuple:
     """Convert a browser-recorded WebM into the requested export format with ffmpeg.
     w/h (> 0): scale to fit inside w x h and pad with black; fps (> 0): resample the frame rate."""
     from voice import media
@@ -215,6 +254,9 @@ def run_export(data: bytes, fmt: str, w: int = 0, h: int = 0, fps: int = 0) -> t
             pre.append(f"scale={w}:{h}:force_original_aspect_ratio=decrease:flags=lanczos,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1")
         if fps > 0 and fmt != "gif":
             pre.append(f"fps={fps}")
+    is360 = is360 and ext == "mp4"
+    if is360:
+        args = args[:-2] if args[-2:] == ["-movflags", "+faststart"] else args   # faststart would move moov before mdat
     if any("{PRE}" in a for a in args):
         args = [a.replace("{PRE}", "".join(p + "," for p in pre)) for a in args]
     elif pre:
@@ -227,7 +269,8 @@ def run_export(data: bytes, fmt: str, w: int = 0, h: int = 0, fps: int = 0) -> t
                            capture_output=True, text=True, timeout=7200)
         if r.returncode != 0 or not dst.exists():
             raise RuntimeError((r.stderr or "ffmpeg failed").strip()[-400:])
-        return dst.read_bytes(), mime
+        out = dst.read_bytes()
+        return (mark_360(out) if is360 else out), mime
 
 
 def run_analyze(data: bytes, kind: str, q: dict) -> dict:
@@ -480,7 +523,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return self._reply(413, {"error": "recording too large"})
                 q = parse_qs(url.query)
                 dim = lambda k, hi: max(0, min(hi, int(q.get(k, ["0"])[0] or 0)))
-                body, mime = run_export(self.rfile.read(n), fmt, dim("w", 7680), dim("h", 7680), dim("fps", 120))
+                body, mime = run_export(self.rfile.read(n), fmt, dim("w", 7680), dim("h", 7680), dim("fps", 120), q.get("v360", [""])[0] == "1")
                 self.send_response(200)
                 self.send_header("Content-Type", mime)
                 self.send_header("Content-Length", str(len(body)))

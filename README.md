@@ -79,6 +79,17 @@ claude mcp add opencut -- python3 /path/to/lexcut/opencut_mcp.py
 
 Keep the editor open in a browser tab. Claude then gets the tools `opencut_get_state`, `opencut_edit`, `opencut_screenshot`, `opencut_undo`, `opencut_redo` and `opencut_help`. (The connector keeps its original `opencut` name so existing setups keep working.)
 
+### Gemini and ChatGPT (Codex)
+
+The connector is a standard MCP server, so the same script works with other MCP clients that start local programs:
+
+```bash
+gemini mcp add opencut python3 /path/to/lexcut/opencut_mcp.py     # Gemini CLI
+codex mcp add opencut -- python3 /path/to/lexcut/opencut_mcp.py   # OpenAI Codex CLI (ChatGPT login)
+```
+
+The ChatGPT website and app only connect to MCP servers on a public HTTPS address, so they cannot use this local connector.
+
 ## Where your data lives
 
 - Your project: in the browser (IndexedDB). Use File → Save project for a file copy.
